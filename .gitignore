@@ -1,0 +1,28 @@
+node_modules/
+dist/
+coverage/
+
+# Secrets and local config: never commit.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials*.json
+client_secret*.json
+token*.json
+secrets/
+
+# Local state: databases, backups, logs, exports.
+data/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+backups/
+logs/
+*.log
+exports/
+
+.DS_Store

@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Thin launcher so callers (launchd, the OpenClaw skill, your shell) need no knowledge of Node paths.
+# Runs the compiled CLI from this repository, with the repository as the working directory so
+# that .env and ./data resolve the same way every time.
+set -euo pipefail
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+if [ ! -f "$REPO/dist/src/cli.js" ]; then
+  echo "HomePilot is not built yet. Run: (cd \"$REPO\" && npm install && npm run build)" >&2
+  exit 1
+fi
+cd "$REPO"
+exec node "$REPO/dist/src/cli.js" "$@"

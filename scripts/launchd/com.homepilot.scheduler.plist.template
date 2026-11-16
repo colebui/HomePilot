@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  HomePilot scheduler as a per-user LaunchAgent. TEMPLATE: not installed by anything in this repo.
+  NOT YET VERIFIED on the Mac mini. See docs/operations.md for install and uninstall steps.
+
+  Replace before use:
+    __NODE__     absolute path to node 22+        (run: which node)
+    __REPO__     absolute path to this repository (run: pwd)
+  Secrets do NOT go in this file. The scheduler reads them from the Keychain or from __REPO__/.env.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.homepilot.scheduler</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>__NODE__</string>
+    <string>__REPO__/dist/src/cli.js</string>
+    <string>run</string>
+    <string>--interval</string>
+    <string>15</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>__REPO__</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>ThrottleInterval</key>
+  <integer>30</integer>
+  <key>ProcessType</key>
+  <string>Background</string>
+  <key>StandardOutPath</key>
+  <string>__REPO__/logs/scheduler.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>__REPO__/logs/scheduler.err.log</string>
+</dict>
+</plist>
