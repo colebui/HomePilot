@@ -11,7 +11,7 @@ const bool = (def: boolean) =>
       const s = v.trim().toLowerCase();
       if (['1', 'true', 'yes', 'on'].includes(s)) return true;
       if (['0', 'false', 'no', 'off'].includes(s)) return false;
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: `expected true/false, got "${v}"` });
+      ctx.addIssue({ code: 'custom', message: `expected true/false, got "${v}"` });
       return z.NEVER;
     });
 
@@ -23,7 +23,7 @@ const int = (def: number, min: number, max: number) =>
       if (v === undefined || v === '') return def;
       const n = Number(v);
       if (!Number.isInteger(n) || n < min || n > max) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: `expected integer ${min}..${max}, got "${v}"` });
+        ctx.addIssue({ code: 'custom', message: `expected integer ${min}..${max}, got "${v}"` });
         return z.NEVER;
       }
       return n;
@@ -37,7 +37,7 @@ const num = (def: number, min: number, max: number) =>
       if (v === undefined || v === '') return def;
       const n = Number(v);
       if (!Number.isFinite(n) || n < min || n > max) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: `expected number ${min}..${max}, got "${v}"` });
+        ctx.addIssue({ code: 'custom', message: `expected number ${min}..${max}, got "${v}"` });
         return z.NEVER;
       }
       return n;
@@ -50,7 +50,7 @@ const hhmm = (def: string) =>
     .transform((v, ctx) => {
       const s = v === undefined || v === '' ? def : v.trim();
       if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(s)) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: `expected HH:MM (24h), got "${s}"` });
+        ctx.addIssue({ code: 'custom', message: `expected HH:MM (24h), got "${s}"` });
         return z.NEVER;
       }
       return s;
@@ -87,7 +87,7 @@ const EnvSchema = z.object({
 
   HOMEPILOT_MODEL_PROVIDER: z.enum(['mock', 'openrouter']).optional().default('mock'),
   OPENROUTER_API_KEY: z.string().optional(),
-  OPENROUTER_BASE_URL: z.string().url().optional().default('https://openrouter.ai/api/v1'),
+  OPENROUTER_BASE_URL: z.url().optional().default('https://openrouter.ai/api/v1'),
   HOMEPILOT_MODEL_FAST: csv(['deepseek/deepseek-v4.1-flash-1017', 'tencent/hy4-flash']),
   HOMEPILOT_MODEL_BALANCED: csv(['openai/gpt-6.1-terra', 'google/gemini-4-hydrogen']),
   HOMEPILOT_MODEL_PREMIUM: csv(['anthropic/claude-fable-5.2']),
@@ -100,7 +100,7 @@ const EnvSchema = z.object({
   HOMEPILOT_BUDGET_ALERT_THRESHOLDS: csv(['0.5', '0.8', '1.0']).transform((list, ctx) => {
     const out = list.map(Number);
     if (out.some((n) => !Number.isFinite(n) || n <= 0 || n > 10)) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'thresholds must be fractions like 0.5,0.8,1.0' });
+      ctx.addIssue({ code: 'custom', message: 'thresholds must be fractions like 0.5,0.8,1.0' });
       return z.NEVER;
     }
     return [...out].sort((a, b) => a - b);
