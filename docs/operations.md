@@ -123,10 +123,26 @@ How it behaves:
 
 ## Dashboard
 
+Tasks, reminders sent, model spend and budget, and a box to type commands, on
+`http://127.0.0.1:8787`.
+
+With the service: put a token in `.env` once (this prints nothing), then restart the service.
+
 ```bash
-./bin/homepilot serve
-# open http://127.0.0.1:8787/?token=<your HOMEPILOT_API_TOKEN>
+echo "HOMEPILOT_API_TOKEN=$(openssl rand -hex 32)" >> .env && chmod 600 .env
+launchctl kickstart -k gui/$(id -u)/com.homepilot.scheduler
+grep '^Dashboard' logs/scheduler.out.log | tail -1
 ```
+
+`homepilot run` then serves the dashboard in the same process. Open it on the Mac with:
+
+```bash
+open "http://127.0.0.1:8787/?token=$(grep '^HOMEPILOT_API_TOKEN=' .env | cut -d= -f2)"
+```
+
+The first visit swaps the token for a cookie and removes it from the address bar; bookmark
+`http://127.0.0.1:8787/` after that (the cookie lasts 12 hours). Without the service, run
+`./bin/homepilot serve` instead; do not run both, as they use the same port.
 
 Loopback only. To view it from another device, use an SSH tunnel
 (`ssh -L 8787:127.0.0.1:8787 you@mac-mini`). Do not expose the port.

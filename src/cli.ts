@@ -32,7 +32,8 @@ Tasks
 Scheduler
   init                         Create or upgrade the database
   tick                         Run everything that is due now, once
-  run [--interval SECONDS]     Run continuously (this is what launchd will start)
+  run [--interval SECONDS]     Run continuously (this is what launchd starts). Also serves the
+                               dashboard when HOMEPILOT_API_TOKEN is set; --no-dashboard turns that off
   jobs                         Show the job queue
   nudges                       Show what the nudge engine would do right now (sends nothing)
   outbox [--limit N]           Show notifications (in dry-run they are recorded, not sent)
@@ -194,6 +195,21 @@ async function main(): Promise<void> {
               `Reminders go to ${channel ? maskHandle(config.imessage.notifyHandle!) : 'the local outbox only'}.`,
           );
         }
+        // The dashboard runs in the same process when a token is set in .env or the environment,
+        // so the one launchd service gives you both. The Keychain is not consulted here: a
+        // background service may be unable to answer a Keychain prompt.
+        let dashboard: ReturnType<typeof createApiServer> | undefined;
+        if (config.api.token && !has(args, 'no-dashboard')) {
+          const server = createApiServer(app, { token: config.api.token, port: config.api.port });
+          try {
+            await listen(server, config.api.port);
+            dashboard = server;
+            console.log(`Dashboard: http://127.0.0.1:${config.api.port}/?token=<your HOMEPILOT_API_TOKEN> (this Mac only)`);
+          } catch (err) {
+            // Never let the dashboard stop reminders: log and carry on without it.
+            console.error(`[dashboard] not started: ${err instanceof Error ? err.message : String(err)}`);
+          }
+        }
         app.scheduler.start(
           seconds * 1000,
           (err) => console.error(`[scheduler] ${err instanceof Error ? err.message : String(err)}`),
@@ -208,6 +224,7 @@ async function main(): Promise<void> {
         const stop = (): void => {
           console.log('\nStopping. Pending jobs stay in the database and resume on next start.');
           listener?.stop();
+          dashboard?.close();
           app.close();
           process.exit(0);
         };
