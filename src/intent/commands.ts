@@ -3,6 +3,7 @@ import { parseWhen, type ParsedWhen } from '../time.js';
 
 export type Command =
   | { type: 'add_task'; title: string; when?: ParsedWhen; remind: boolean }
+  | { type: 'add_tasks'; items: Array<{ title: string; when?: ParsedWhen; remind: boolean }> }
   | { type: 'snooze'; ref: string | null; when?: ParsedWhen }
   | { type: 'done'; ref: string | null }
   | { type: 'dismiss'; ref: string | null; forever: boolean }
@@ -109,11 +110,24 @@ export function parseCommand(text: string, now: Date, zone: string): Command | u
   }
   if ((m = /^mark\s+(.*?)\s+(?:as\s+)?(?:done|complete|completed)$/i.exec(t))) return { type: 'done', ref: cleanRef(m[1]!) };
 
-  const add = (body: string, remind: boolean): Command | undefined => {
+  const one = (body: string, remind: boolean): { title: string; when?: ParsedWhen; remind: boolean } | undefined => {
     const when = parseWhen(body, now, zone);
     const title = cleanTitle(body, when);
-    if (!title) return undefined;
-    return { type: 'add_task', title, remind, ...(when ? { when } : {}) };
+    return title ? { title, remind, ...(when ? { when } : {}) } : undefined;
+  };
+  const add = (body: string, remind: boolean): Command | undefined => {
+    // Several things in one text ("eat lunch, gym around 430, therapy at 6pm"): one task each.
+    const parts = body.split(/\s*(?:[,;]|\band then\b|\bthen\b)\s*(?:and\s+)?/i).filter((p) => p.trim());
+    if (parts.length >= 2) {
+      const items = parts.map((p) => one(p, remind));
+      const timed = items.filter((i) => i?.when).length;
+      if (timed >= 2 && items.every(Boolean)) return { type: 'add_tasks', items: items as Array<NonNullable<(typeof items)[number]>> };
+      // A list without its own times ("eggs, milk and bread", or "call mom, laundry, email Sam")
+      // is ambiguous: one task or several? Leave it to the model, which can return either.
+      if (parts.length >= 3) return undefined;
+    }
+    const item = one(body, remind);
+    return item ? { type: 'add_task', ...item } : undefined;
   };
 
   if ((m = /^remind me\s+(?:to\s+|about\s+)?(.+)$/i.exec(t))) return add(m[1]!, true);
@@ -125,6 +139,7 @@ export function parseCommand(text: string, now: Date, zone: string): Command | u
   if ((m = /^(?:add|put)\s+(.+?)\s+(?:to|on)\s+my\s+(?:tasks?|to-?dos?|to-?do list|list)$/i.exec(t))) return add(m[1]!, false);
   if ((m = /^(?:todo|to-do|task|add task|new task)\s*[: ]\s*(.+)$/i.exec(t))) return add(m[1]!, false);
   if ((m = /^i\s+(?:need|have|want|should|gotta|got)\s+(?:to\s+)?(.+)$/i.exec(t))) return add(m[1]!, false);
+  if ((m = /^(?:need|have|got|gotta|gonna|must)\s+to\s+(.+)$/i.exec(t)) || (m = /^gotta\s+(.+)$/i.exec(t))) return add(m[1]!, false);
 
   return undefined;
 }
@@ -137,13 +152,20 @@ export const LlmIntentSchema = z.object({
   when_text: z.string().max(120).optional(),
   ref: z.string().max(200).optional(),
   remind: z.boolean().optional(),
+  /** Several separate tasks in one message, each with its own time words. */
+  tasks: z
+    .array(z.object({ title: z.string().max(300), when_text: z.string().max(120).optional(), remind: z.boolean().optional() }))
+    .max(10)
+    .optional(),
 });
 export type LlmIntent = z.infer<typeof LlmIntentSchema>;
 
 export const INTENT_SYSTEM_PROMPT = [
   'You classify one text message sent to a personal task assistant by its owner.',
   'Reply with ONLY a JSON object: {"intent": "add_task"|"snooze"|"done"|"dismiss"|"list"|"suggest"|"unknown",',
-  '"title"?: string, "when_text"?: string, "ref"?: string, "remind"?: boolean}.',
+  '"title"?: string, "when_text"?: string, "ref"?: string, "remind"?: boolean,',
+  '"tasks"?: [{"title": string, "when_text"?: string, "remind"?: boolean}]}.',
+  'If the message lists several separate things to do, use intent "add_task" with one "tasks" entry per thing, each with its own time words; never merge them into one title.',
   'title: the task in a few words. when_text: copy the user\'s time words exactly, do not compute dates.',
   'ref: words identifying an existing task. Use "unknown" if unsure. Never invent details.',
 ].join(' ');
@@ -154,8 +176,21 @@ export function commandFromLlm(intent: LlmIntent, now: Date, zone: string): Comm
   const w = when ? { when } : {};
   switch (intent.intent) {
     case 'add_task': {
-      const title = intent.title ? cleanTitle(intent.title) : '';
-      return title ? { type: 'add_task', title, remind: intent.remind ?? false, ...w } : undefined;
+      if (intent.tasks && intent.tasks.length >= 2) {
+        const items = intent.tasks
+          .map((t) => {
+            const tw = t.when_text ? parseWhen(t.when_text, now, zone) : undefined;
+            const title = cleanTitle(t.title);
+            return title ? { title, remind: t.remind ?? intent.remind ?? false, ...(tw ? { when: tw } : {}) } : undefined;
+          })
+          .filter((t): t is NonNullable<typeof t> => Boolean(t));
+        if (items.length >= 2) return { type: 'add_tasks', items };
+        if (items.length === 1) return { type: 'add_task', ...items[0]! };
+      }
+      const single = intent.title ?? intent.tasks?.[0]?.title;
+      const title = single ? cleanTitle(single) : '';
+      const sw = !intent.title && intent.tasks?.[0]?.when_text ? parseWhen(intent.tasks[0].when_text, now, zone) : when;
+      return title ? { type: 'add_task', title, remind: intent.remind ?? false, ...(sw ? { when: sw } : {}) } : undefined;
     }
     case 'snooze':
       return { type: 'snooze', ref: intent.ref ? cleanRef(intent.ref) : null, ...w };

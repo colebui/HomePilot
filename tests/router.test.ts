@@ -33,7 +33,7 @@ describe('ModelRouter', () => {
     const r = await h.app.router.completeStructured(req());
     expect(r).toMatchObject({ ok: true, value: { category: 'errand', minutes: 45 }, model: FAST, attempts: 1, usedFallback: false });
     expect(calls(h)).toEqual([{ model: FAST, outcome: 'ok', error_category: null, attempt: 1, is_fallback: 0, timed_out: 0, cost_kind: 'simulated', input_tokens: 100 }]);
-    expect(h.provider.calls[0]).toMatchObject({ model: FAST, json: true, maxOutputTokens: 512 });
+    expect(h.provider.calls[0]).toMatchObject({ model: FAST, json: true, maxOutputTokens: 1024 });
   });
 
   it('retries invalid JSON within the cap, then falls back to the next model', async () => {

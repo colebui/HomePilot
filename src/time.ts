@@ -74,7 +74,7 @@ const WEEKDAYS: Record<string, number> = {
 
 const DAY_WORD =
   'today|tonight|tomorrow|tmrw|(?:next\\s+)?(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tues?|wed|thur?s?|fri|sat|sun)|\\d{4}-\\d{2}-\\d{2}';
-const TIME_WORD = '(?:at\\s+)?(?:\\d{1,2}(?::\\d{2})?\\s*(?:am|pm)|\\d{1,2}:\\d{2}|noon|midnight)';
+const TIME_WORD = '(?:(?:at|around|about)\\s+(?:\\d{3,4}(?:\\s*(?:am|pm))?|\\d{1,2})|(?:at\\s+|around\\s+|about\\s+)?(?:\\d{1,2}(?::\\d{2})?\\s*(?:am|pm)|\\d{3,4}\\s*(?:am|pm)|\\d{1,2}:\\d{2}|noon|midnight))';
 const PART_WORD = '(?:in\\s+the\\s+|this\\s+)?(?:morning|afternoon|evening)';
 
 const RE_RELATIVE = /\bin\s+(\d+|an?|half an)\s*(minutes?|mins?|hours?|hrs?|days?|weeks?)\b/i;
@@ -85,18 +85,22 @@ const RE_DAY_TIME = new RegExp(
   'i',
 );
 const RE_TIME_DAY = new RegExp(`(?:^|\\s)(${TIME_WORD})\\s+(?:on\\s+)?(${DAY_WORD})(?=$|[\\s,.!?])`, 'i');
-const RE_TIME_ONLY = new RegExp(`(?:^|\\s)(at\\s+(?:\\d{1,2}(?::\\d{2})?\\s*(?:am|pm)?|noon|midnight)|\\d{1,2}(?::\\d{2})?\\s*(?:am|pm))(?=$|[\\s,.!?])`, 'i');
+const RE_TIME_ONLY = new RegExp(
+  `(?:^|\\s)((?:at|around|about)\\s+(?:\\d{1,2}(?::\\d{2})?|\\d{3,4})(?:\\s*(?:am|pm))?|at\\s+(?:noon|midnight)|(?:\\d{1,2}(?::\\d{2})?|\\d{3,4})\\s*(?:am|pm)|\\d{1,2}:\\d{2})(?=$|[\\s,.!?])`,
+  'i',
+);
 
 const DEFAULT_HOUR = 9;
 
-function parseClock(text: string): { hour: number; minute: number } | undefined {
-  const t = text.toLowerCase().replace(/^at\s+/, '').replace(/^(in the|this)\s+/, '').trim();
+function parseClock(text: string): { hour: number; minute: number; ambiguous?: boolean } | undefined {
+  const t = text.toLowerCase().replace(/^(?:at|around|about)\s+/, '').replace(/^(in the|this)\s+/, '').trim();
   if (t === 'noon') return { hour: 12, minute: 0 };
   if (t === 'midnight') return { hour: 0, minute: 0 };
   if (t === 'morning') return { hour: 9, minute: 0 };
   if (t === 'afternoon') return { hour: 14, minute: 0 };
   if (t === 'evening') return { hour: 18, minute: 0 };
-  const m = /^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/.exec(t);
+  // "4", "4:30", "4pm", and "430" / "1130pm" (hour and minutes run together).
+  const m = /^(\d{1,2})(?::?(\d{2}))?\s*(am|pm)?$/.exec(t);
   if (!m) return undefined;
   let hour = Number(m[1]);
   const minute = m[2] ? Number(m[2]) : 0;
@@ -108,6 +112,9 @@ function parseClock(text: string): { hour: number; minute: number } | undefined 
     if (mer === 'am' && hour === 12) hour = 0;
   } else if (hour > 23) {
     return undefined;
+  } else if (hour >= 1 && hour <= 11) {
+    // "at 4" or "430": could be morning or afternoon. The caller decides from context.
+    return { hour, minute, ambiguous: true };
   }
   return { hour, minute };
 }
@@ -230,6 +237,8 @@ export function parseWhen(text: string, nowDate: Date, zone: string): ParsedWhen
     if (day) {
       const tonight = dayWord.toLowerCase() === 'tonight';
       const clock = timeWord ? parseClock(timeWord) : undefined;
+      // "tomorrow at 4" means 4 PM: nobody books 1-6 AM without saying so. "tonight at 9" is 9 PM.
+      if (clock?.ambiguous && (clock.hour <= 6 || tonight)) clock.hour += 12;
       let at = atLocal(day, clock?.hour ?? (tonight ? 20 : DEFAULT_HOUR), clock?.minute ?? 0);
       const isDate = /^\d{4}/.test(dayWord);
       const isToday = ['today', 'tonight'].includes(dayWord.toLowerCase());
@@ -251,6 +260,13 @@ export function parseWhen(text: string, nowDate: Date, zone: string): ParsedWhen
     const clock = parseClock(to[1]!);
     if (clock) {
       let at = atLocal(now.startOf('day'), clock.hour, clock.minute);
+      if (clock.ambiguous) {
+        // "around 430" said at 3 PM means 4:30 PM today, not 4:30 AM tomorrow: take the next
+        // time that clock face comes round. Early hours (1-6) are read as afternoon.
+        const pm = at.plus({ hours: 12 });
+        if (clock.hour <= 6) at = pm;
+        else if (at <= now) at = pm;
+      }
       if (at <= now) at = at.plus({ days: 1 });
       return { kind: 'at', at: at.toJSDate(), hasExplicitTime: true, matched: to[0].trim() };
     }
