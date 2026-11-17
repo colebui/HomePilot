@@ -37,7 +37,7 @@ export interface ToolDef<I = unknown, O = unknown> {
   description: string;
   /** false = only touches HomePilot's own database. true = affects the outside world. */
   external: boolean;
-  input: z.ZodType<I, z.ZodTypeDef, unknown>;
+  input: z.ZodType<I, unknown>;
   summarize(input: I): ActionSummary;
   /** Describe what WOULD happen. Must have no side effects. */
   dryRun(input: I, ctx: ToolContext): Promise<O> | O;

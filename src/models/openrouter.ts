@@ -8,16 +8,16 @@ export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>
 const ChatResponseSchema = z.object({
   model: z.string().optional(),
   choices: z
-    .array(z.object({ message: z.object({ content: z.string().nullable().optional() }).passthrough() }).passthrough())
+    .array(z.object({ message: z.object({ content: z.string().nullable().optional() }).loose() }).loose())
     .min(1),
   usage: z
     .object({
       prompt_tokens: z.number().optional(),
       completion_tokens: z.number().optional(),
       cost: z.number().nullable().optional(),
-      prompt_tokens_details: z.object({ cached_tokens: z.number().nullable().optional() }).passthrough().nullable().optional(),
+      prompt_tokens_details: z.object({ cached_tokens: z.number().nullable().optional() }).loose().nullable().optional(),
     })
-    .passthrough()
+    .loose()
     .optional(),
 });
 
@@ -32,10 +32,10 @@ const ModelsResponseSchema = z.object({
             completion: z.union([z.string(), z.number()]).optional(),
             input_cache_read: z.union([z.string(), z.number()]).nullable().optional(),
           })
-          .passthrough()
+          .loose()
           .optional(),
       })
-      .passthrough(),
+      .loose(),
   ),
 });
 
