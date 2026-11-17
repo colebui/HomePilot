@@ -18,14 +18,14 @@ This repository is the **Phase 1 MVP**. It runs end to end in dry-run mode with 
 | Policy and approvals | **Implemented** | Tiers A/B/C, default-deny scopes, hash-bound single-use approvals, kill switch |
 | Usage and cost tracking | **Implemented** | Per call, per feature, budget alerts, hypothetical Claude-only comparison |
 | Local dashboard and CLI | **Implemented** | Loopback only, token protected |
-| Notifications | **Mocked** | Dry-run outbox only. Nothing is sent to a phone |
-| Model calls | **Mocked by default** | OpenRouter adapter is written and tested against a fake server. It has **never been called live** |
+| Notifications | **Dry-run by default** | Local outbox. With iMessage enabled and dry-run off, texted to you |
+| Model calls | **Mocked by default** | OpenRouter adapter, off until you set `HOMEPILOT_MODEL_PROVIDER=openrouter`. First live calls made on the Mac mini on 2026-11-17 |
 | Google Calendar | **Mocked** | In-memory mock only. Real adapter is **not implemented** |
 | Calendar events, cart, orders, outside messages | **Mocked** | Tools exist so the approval flow can be exercised. They have no real effect |
-| iMessage | **Not implemented** | Planned for Phase 2 through OpenClaw's iMessage channel |
+| iMessage | **Working on the Mac mini** | HomePilot reads your texts and replies through the `imsg` tool, and texts reminders. Off by default; see [operations](docs/operations.md#imessage-setup) |
 | H-E-B, Amazon, Marketplace, travel, bookings | **Not implemented** | Phase 3 and 4 |
-| OpenClaw audit (Phase 0) | **Blocked** | The Mac mini was not reachable when this was built. See below |
-| OpenClaw skill | **Prepared, not installed** | `src/integrations/openclaw/skill/` |
+| OpenClaw audit (Phase 0) | **Done** | Read-only audit run on the Mac; the report stays out of Git |
+| OpenClaw skill | **Prepared, not used** | `src/integrations/openclaw/skill/`. HomePilot handles iMessage itself |
 | launchd service | **Prepared, not installed** | Template only, not verified on macOS |
 | Keychain lookup | **Written, not verified** | Never run on a real Mac |
 
@@ -96,7 +96,7 @@ Keychain is preferred over `.env`.
 | **OpenRouter API key** | Real model calls (only when `HOMEPILOT_MODEL_PROVIDER=openrouter`) | https://openrouter.ai/keys. Create a key, and set a credit limit on it there | Keychain (below), or `OPENROUTER_API_KEY=` in `.env` |
 | **Dashboard token** | `homepilot serve` | You generate it: `openssl rand -hex 32` | `HOMEPILOT_API_TOKEN=` in `.env`, or Keychain |
 | **Google OAuth client** (Phase 2, not used yet) | Reading your calendar | Google Cloud Console: create a project, enable the Google Calendar API, create an OAuth client of type "Desktop app" | `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` placeholders in `.env.example`. The adapter is not written yet, so do not create this until Phase 2 |
-| **Your iMessage handle** (Phase 2, not used yet) | Allowlisting the one sender who may command HomePilot | Your own phone number or Apple ID email | `HOMEPILOT_ALLOWED_SENDERS` in `.env`. Not a secret, but it is personal, so keep it out of Git |
+| **Your iMessage handle** | Allowlisting the one sender who may command HomePilot | Your own phone number or Apple ID email | `HOMEPILOT_ALLOWED_SENDERS` in `.env`. Not a secret, but it is personal, so keep it out of Git |
 
 Storing a secret in the macOS Keychain (the command prompts for the value, so it never lands
 in your shell history):
@@ -123,8 +123,9 @@ Dry-run is the default and stays on until you turn it off. The order that keeps 
 
 1. Run `bash scripts/audit-openclaw.sh` on the Mac mini (read-only) and review the report.
 2. Add the OpenRouter key, set `HOMEPILOT_MODEL_PROVIDER=openrouter`, keep `HOMEPILOT_DRY_RUN=true`.
-3. Install the launchd service ([docs/operations.md](docs/operations.md)).
-4. Phase 2: connect iMessage through OpenClaw and Google Calendar read-only.
+3. Set up iMessage, listen-only first, then live ([docs/operations.md](docs/operations.md#imessage-setup)).
+4. Install the launchd service ([docs/operations.md](docs/operations.md)).
+5. Phase 2: Google Calendar read-only.
 
 ## Documentation
 
@@ -153,7 +154,7 @@ src/
   telemetry/             usage recording, reports, export
   tools/                 policy engine, executor, built-in tools
   api/                   loopback HTTP API and dashboard
-  integrations/          google-calendar (mock), openclaw (skill draft), imessage (empty)
+  integrations/          google-calendar (mock), openclaw (skill draft), imessage (imsg)
 scripts/                 demo, read-only OpenClaw audit, launchd template
 tests/                   130 tests, all offline
 ```

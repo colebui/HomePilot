@@ -34,6 +34,7 @@ export function cleanTitle(raw: string, when?: ParsedWhen): string {
     .replace(/\s+/g, ' ')
     .replace(/[\s,;:-]*\b(?:sometime|some time|on|at|by|before|until|till|around)\s*$/i, '')
     .replace(/^[\s,.;:-]+|[\s,.;:!?-]+$/g, '')
+    .replace(/^(?:sometime|some time)\s+/i, '')
     .replace(/^(?:to|a|an)\s+/i, '')
     .trim();
   return t.length ? t[0]!.toUpperCase() + t.slice(1) : t;

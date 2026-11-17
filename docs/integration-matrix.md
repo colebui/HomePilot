@@ -2,26 +2,23 @@
 
 ## Verification status
 
-**Phase 0 (the read-only audit of the Mac mini) is blocked.** When this was written, the only
-computer linked to the build session was a Windows PC. The Mac mini running OpenClaw could not
-be inspected, so:
+The read-only Phase 0 audit has been run on the host. Its report stays in `data/`, which is
+git-ignored: details of the host's setup are deliberately not published in this repository.
 
-- Nothing below was checked against the installed OpenClaw.
-- Every OpenClaw fact comes from https://docs.openclaw.ai as read on **2026-11-16**
-  (latest release listed there: v2026.11.3). Treat each as **unverified** until
-  `scripts/audit-openclaw.sh` has been run on the Mac and its output reviewed.
+What came out of it: OpenClaw had no iMessage channel configured, so there was nothing to reuse
+for texts, and routing texts through a general-purpose agent that can run shell commands is a
+risk this project avoids. **Decision: HomePilot handles iMessage itself** through `imsg`, and
+OpenClaw is left untouched.
 
-To unblock: on the Mac mini, in this repository, run `bash scripts/audit-openclaw.sh`. It only
-reads, writes one report under `data/`, never opens a config or credential file, and redacts
-anything shaped like a key.
+Rows below that say "docs only" or "No" were not checked on the machine.
 
 ## Reuse or build
 
 | Capability | Decision | Why | Verified? |
 | --- | --- | --- | --- |
-| Receiving and sending iMessages | **Reuse OpenClaw** | Its gateway already owns the Messages bridge (`imsg` over JSON-RPC per its docs). Building a second bridge would fight the first | No. Docs only |
+| Receiving and sending iMessages | **Build** (changed after the audit) | No OpenClaw iMessage channel was configured, and texts should never reach a shell-capable agent. HomePilot talks to `imsg` itself | Yes, on the Mac (2026-11-17) |
 | Conversational agent, model login, channels | **Reuse OpenClaw, do not change** | It is your working setup. HomePilot never edits `~/.openclaw`, the default model, or agents | No |
-| Entry point from a text to HomePilot | **Reuse OpenClaw skills** | A skill is a folder with a `SKILL.md`; the agent runs a local CLI. A draft is in `src/integrations/openclaw/skill/homepilot/` | No. **Not installed** |
+| Entry point from a text to HomePilot | **Build** (changed after the audit) | `ImessageListener` reads texts directly. The OpenClaw skill draft in `src/integrations/openclaw/skill/homepilot/` is kept for reference but not used | Tests only |
 | Task and reminder storage | **Build** | Needs a schema, state transitions, idempotency and an audit trail that HomePilot controls | Yes (tests) |
 | Scheduling | **Build** | OpenClaw automations wake the agent (a model turn) per its docs. Reminders must fire with no model and no cost | Build: yes. The OpenClaw claim: no |
 | Nudge decisions | **Build** | Deterministic rules that can be tested and explained | Yes (tests) |
@@ -34,10 +31,10 @@ anything shaped like a key.
 
 | Integration | State | What exists | What is missing |
 | --- | --- | --- | --- |
-| OpenClaw skill | Prepared, not installed | `SKILL.md` that pipes the user's words to `homepilot say --stdin --channel openclaw` | Audit, your approval, copy to `~/.openclaw/workspace/skills/homepilot/`, a test message |
-| iMessage outbound (reminders, nudges) | Not implemented | `Channel` interface, outbox, idempotency key | A channel that hands a message to OpenClaw. The right mechanism (webhook, CLI, or automation delivery) must be chosen after the audit |
-| iMessage inbound | Not implemented | Sender allowlist, agent-channel restrictions | Depends on the skill above |
-| OpenRouter | Written, never called live | Adapter, router, fallbacks, cost capture, price sync | An API key and one supervised live call |
+| OpenClaw skill | Prepared, not installed, not planned | `SKILL.md` that pipes the user's words to `homepilot say --stdin --channel openclaw` | Not needed: HomePilot handles iMessage directly |
+| iMessage outbound (reminders, nudges) | Working on the Mac | `ImessageChannel` sends through `imsg rpc` to one configured handle | Run as the launchd service |
+| iMessage inbound | Working on the Mac | `ImessageListener`: allowlist, one-to-one chats only, at-most-once, resume cursor, hourly cap | Run as the launchd service |
+| OpenRouter | Working: first live calls 2026-11-17 | Adapter, router, fallbacks, cost capture, price sync | Nothing for the fast tier |
 | Google Calendar | Mock only | Provider interface, conflict and free-time maths | OAuth flow, token storage in Keychain, real adapter |
 | H-E-B, Amazon | Not implemented | Mock cart and order tools for the approval flow | Everything. No official consumer ordering API is assumed |
 | Facebook Marketplace | Not implemented | Nothing | A compliant approach; no scraping is assumed |

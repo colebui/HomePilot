@@ -14,6 +14,7 @@ describe('parseCommand (deterministic, no model)', () => {
     expect(parse('done with the return')).toEqual({ type: 'done', ref: 'return' });
     expect(parse("don't remind me about that again")).toEqual({ type: 'dismiss', ref: null, forever: true });
     expect(parse('I need a haircut sometime this week.')).toMatchObject({ type: 'add_task', title: 'Haircut', remind: false, when: { kind: 'window' } });
+    expect(parse('I need sometime to go to gym tomorrow')).toMatchObject({ type: 'add_task', title: 'Go to gym' });
     expect(parse('Remind me to return that Amazon package before Friday')).toMatchObject({ type: 'add_task', title: 'Return that Amazon package', when: { kind: 'deadline' } });
   });
 
@@ -48,6 +49,7 @@ describe('parseCommand (deterministic, no model)', () => {
   it('cleans titles', () => {
     expect(cleanTitle('to buy milk on ')).toBe('Buy milk');
     expect(cleanTitle('a haircut sometime')).toBe('Haircut');
+    expect(cleanTitle('sometime to go to gym')).toBe('Go to gym');
   });
 });
 

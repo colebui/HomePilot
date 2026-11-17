@@ -49,6 +49,16 @@ content is tagged `untrusted_content` and denied outright, whatever tier and wha
 When a model is used to understand a message from you, it returns a small JSON object that is
 validated against a schema. It cannot name a tool, set a date, or approve anything.
 
+## iMessage
+
+HomePilot reads texts itself through `imsg`; no AI agent sits between your phone and HomePilot.
+Only allowlisted handles in one-to-one chats are acted on, messages sent from the Mac itself are
+ignored, each text is handled at most once, and a per-hour cap stops loops. Text from anyone
+else is not stored and gets no reply. A text from you goes through the same deterministic parser
+and policy layer as the terminal, so it can manage tasks and reminders but cannot run commands.
+Trust rests on Messages' sender identity: someone who can send from your Apple ID can command
+HomePilot.
+
 ## Agent-relayed channels
 
 When a message reaches HomePilot through an AI agent (the planned OpenClaw skill), the agent,

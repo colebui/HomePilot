@@ -7,6 +7,11 @@ import { ConfigError, loadConfig, loadDotEnv } from './config.js';
 import { runDemo } from './demo.js';
 import { fetchOpenRouterPrices } from './models/openrouter.js';
 import { resolveSecret } from './secrets.js';
+import { ImessageChannel } from './integrations/imessage/channel.js';
+import { maskHandle } from './integrations/imessage/handles.js';
+import { ImessageListener } from './integrations/imessage/listener.js';
+import { ImsgRpc } from './integrations/imessage/rpc.js';
+import type { Channel } from './notify/notifier.js';
 import { exportLlmCalls, formatUsageReport } from './telemetry/report.js';
 import { formatLocal, parseWhen } from './time.js';
 
@@ -46,6 +51,11 @@ Reporting
   models sync                  Refresh model prices from OpenRouter's public catalog
   prefs | prefs set <key> <json> | prefs delete <key>
 
+iMessage (macOS only)
+  imessage status              Check imsg, Messages permissions and who may text commands
+  imessage send-test           Text one test message to HOMEPILOT_NOTIFY_HANDLE
+                               (texts are read and answered while "run" is running)
+
 Other
   serve                        Local dashboard on 127.0.0.1 (needs HOMEPILOT_API_TOKEN)
   backup [DIR]                 Write a consistent copy of the database
@@ -82,7 +92,11 @@ async function main(): Promise<void> {
 
   loadDotEnv();
   const config = loadConfig();
-  const app = App.open({ config });
+  // iMessage is only wired up for the long-running scheduler. Every other command stays offline.
+  const imsg = command === 'run' && config.imessage.enabled ? new ImsgRpc({ cliPath: config.imessage.cliPath, onStderr: (l) => console.error(`[imsg] ${l}`) }) : undefined;
+  let channel: Channel | undefined;
+  if (imsg && !config.dryRun && config.imessage.notifyHandle) channel = new ImessageChannel(imsg, config.imessage.notifyHandle);
+  const app = App.open({ config, ...(channel ? { channel } : {}) });
   const tz = config.timezone;
   const when = (text: string): Date => {
     const w = parseWhen(text, app.clock.now(), tz);
@@ -161,6 +175,25 @@ async function main(): Promise<void> {
         keepOpen = true;
         const h = app.health();
         console.log(`HomePilot running. Tick every ${seconds}s. Mode: ${h.dryRun ? 'dry-run' : 'LIVE'}. Model: ${h.modelProvider.name}. Ctrl+C to stop.`);
+        let listener: ImessageListener | undefined;
+        if (imsg) {
+          imsg.onExit((reason) => {
+            // Exit so launchd (KeepAlive) restarts us with a fresh imsg process.
+            console.error(`[imessage] ${reason}. Stopping so the service can restart cleanly.`);
+            app.close();
+            process.exit(1);
+          });
+          listener = new ImessageListener(app, imsg, { dryRun: config.dryRun, maxPerHour: config.imessage.maxPerHour, log: (l) => console.log(l) });
+          try {
+            await listener.start();
+          } catch (err) {
+            fail(`iMessage could not start: ${err instanceof Error ? err.message : String(err)}`);
+          }
+          console.log(
+            `iMessage: listening. Replies ${config.dryRun ? 'are logged here, NOT sent (HOMEPILOT_DRY_RUN=true)' : 'are sent'}. ` +
+              `Reminders go to ${channel ? maskHandle(config.imessage.notifyHandle!) : 'the local outbox only'}.`,
+          );
+        }
         app.scheduler.start(
           seconds * 1000,
           (err) => console.error(`[scheduler] ${err instanceof Error ? err.message : String(err)}`),
@@ -174,6 +207,7 @@ async function main(): Promise<void> {
         );
         const stop = (): void => {
           console.log('\nStopping. Pending jobs stay in the database and resume on next start.');
+          listener?.stop();
           app.close();
           process.exit(0);
         };
@@ -316,6 +350,32 @@ async function main(): Promise<void> {
         const file = join(dir, `homepilot-${app.clock.now().toISOString().replace(/[:.]/g, '-')}.db`);
         app.db.exec(`VACUUM INTO '${file.replace(/'/g, "''")}'`);
         console.log(`Backup written to ${file}`);
+        break;
+      }
+
+      case 'imessage': {
+        const sub = args[0];
+        if (sub !== 'status' && sub !== 'send-test') fail('Usage: homepilot imessage status | homepilot imessage send-test');
+        const rpc = new ImsgRpc({ cliPath: config.imessage.cliPath, timeoutMs: 15_000 });
+        try {
+          await rpc.request('initialize', { protocol_version: 1 });
+          const st = await rpc.request<{ version?: string; database?: { ready?: boolean } }>('status');
+          console.log(`imsg ${st?.version ?? '(version unknown)'} at ${config.imessage.cliPath}`);
+          console.log(`Messages database readable: ${st?.database?.ready ? 'yes' : 'NO (grant Full Disk Access to this terminal app, then reopen it)'}`);
+          console.log(`HomePilot iMessage: ${config.imessage.enabled ? 'enabled' : 'disabled (HOMEPILOT_IMESSAGE_ENABLED=false)'}; dry-run: ${config.dryRun}`);
+          const allowed = config.allowedSenders.filter((a) => a !== 'local-cli');
+          console.log(`Allowed to text commands: ${allowed.length ? allowed.map(maskHandle).join(', ') : 'nobody yet (add your handle to HOMEPILOT_ALLOWED_SENDERS)'}`);
+          console.log(`Reminders texted to: ${config.imessage.notifyHandle ? maskHandle(config.imessage.notifyHandle) : 'nobody (HOMEPILOT_NOTIFY_HANDLE not set)'}`);
+          if (sub === 'send-test') {
+            if (!config.imessage.notifyHandle) fail('Set HOMEPILOT_NOTIFY_HANDLE first.');
+            await rpc.request('send', { to: config.imessage.notifyHandle, text: 'HomePilot test: if you can read this, texts from your Mac mini work.', service: 'imessage' });
+            console.log(`Sent one test text to ${maskHandle(config.imessage.notifyHandle)}. (The first send may make macOS ask to let this app control Messages: allow it.)`);
+          }
+        } catch (err) {
+          fail(`imsg check failed: ${err instanceof Error ? err.message : String(err)}\nIs imsg installed? (brew install steipete/tap/imsg)`);
+        } finally {
+          rpc.close();
+        }
         break;
       }
 

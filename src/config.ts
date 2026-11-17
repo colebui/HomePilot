@@ -80,6 +80,11 @@ const EnvSchema = z.object({
   HOMEPILOT_AGENT_CHANNELS: csv(['openclaw']),
   HOMEPILOT_REPLY_SHOWS_MODEL: bool(true),
 
+  HOMEPILOT_IMESSAGE_ENABLED: bool(false),
+  HOMEPILOT_IMSG_PATH: z.string().optional().default('imsg'),
+  HOMEPILOT_NOTIFY_HANDLE: z.string().optional(),
+  HOMEPILOT_IMESSAGE_MAX_PER_HOUR: int(30, 1, 1000),
+
   HOMEPILOT_QUIET_HOURS_START: hhmm('22:00'),
   HOMEPILOT_QUIET_HOURS_END: hhmm('08:00'),
   HOMEPILOT_MAX_NUDGES_PER_DAY: int(3, 0, 50),
@@ -127,6 +132,14 @@ export interface Config {
   agentChannels: string[];
   /** Add "(read by <model>)" to a reply when a model, not plain code, understood the message. */
   replyShowsModel: boolean;
+  imessage: {
+    /** Read texts and reply through Messages on this Mac (via the imsg tool). */
+    enabled: boolean;
+    cliPath: string;
+    /** Where reminders and nudges are texted. Undefined = they stay in the local outbox. */
+    notifyHandle: string | undefined;
+    maxPerHour: number;
+  };
   nudges: {
     quietStart: string;
     quietEnd: string;
@@ -182,6 +195,12 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     allowedSenders: e.HOMEPILOT_ALLOWED_SENDERS,
     agentChannels: e.HOMEPILOT_AGENT_CHANNELS,
     replyShowsModel: e.HOMEPILOT_REPLY_SHOWS_MODEL,
+    imessage: {
+      enabled: e.HOMEPILOT_IMESSAGE_ENABLED,
+      cliPath: e.HOMEPILOT_IMSG_PATH,
+      notifyHandle: e.HOMEPILOT_NOTIFY_HANDLE?.trim() || undefined,
+      maxPerHour: e.HOMEPILOT_IMESSAGE_MAX_PER_HOUR,
+    },
     nudges: {
       quietStart: e.HOMEPILOT_QUIET_HOURS_START,
       quietEnd: e.HOMEPILOT_QUIET_HOURS_END,

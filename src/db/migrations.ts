@@ -240,4 +240,20 @@ CREATE TABLE system_state (
 );
 `,
   },
+  {
+    version: 2,
+    name: 'imessage_inbound',
+    sql: `
+-- One row per incoming iMessage HomePilot has seen. The text itself is never stored.
+CREATE TABLE imessage_inbound (
+  guid        TEXT PRIMARY KEY,
+  rowid       INTEGER NOT NULL,
+  sender      TEXT NOT NULL,           -- masked, e.g. "…0100"
+  allowed     INTEGER NOT NULL,
+  received_at TEXT NOT NULL,
+  handled_at  TEXT
+);
+CREATE INDEX imessage_inbound_sender ON imessage_inbound (sender, received_at);
+`,
+  },
 ];
