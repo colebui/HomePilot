@@ -21,6 +21,12 @@
     <string>--interval</string>
     <string>15</string>
   </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <!-- launchd starts with a minimal PATH; include Homebrew so `imsg` is found. -->
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+  </dict>
   <key>WorkingDirectory</key>
   <string>__REPO__</string>
   <key>RunAtLoad</key>
