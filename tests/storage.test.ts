@@ -77,7 +77,7 @@ describe('database', () => {
     const db = openDatabase(':memory:', MONDAY_9AM);
     expect(migrate(db, MONDAY_9AM)).toEqual([]);
     const tables = db.all<{ name: string }>("SELECT name FROM sqlite_master WHERE type = 'table'").map((t) => t.name);
-    for (const t of ['tasks', 'reminders', 'preferences', 'events', 'approvals', 'tool_executions', 'jobs', 'job_runs', 'notifications', 'llm_calls', 'workflow_runs', 'other_costs', 'model_prices', 'system_state', 'schema_migrations']) {
+    for (const t of ['tasks', 'reminders', 'preferences', 'events', 'approvals', 'tool_executions', 'jobs', 'job_runs', 'notifications', 'llm_calls', 'workflow_runs', 'other_costs', 'model_prices', 'system_state', 'imessage_inbound', 'schema_migrations']) {
       expect(tables).toContain(t);
     }
     db.close();
@@ -186,7 +186,7 @@ describe('preferences and memory', () => {
 describe('health', () => {
   it('reports degraded state for dead jobs and an idle scheduler', async () => {
     h = harness();
-    expect(h.app.health()).toMatchObject({ ok: true, paused: false, dryRun: true, schemaVersion: 1, problems: [] });
+    expect(h.app.health()).toMatchObject({ ok: true, paused: false, dryRun: true, schemaVersion: 2, problems: [] });
     h.app.scheduler.enqueue({ type: 'no.such.handler', runAt: new FakeClock(MONDAY_9AM).now(), idempotencyKey: 'x', maxAttempts: 1 });
     h.clock.advanceMinutes(11);
     expect(h.app.health().problems.join(' ')).toMatch(/more than 10 minutes overdue/);

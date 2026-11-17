@@ -18,11 +18,11 @@ This repository is the **Phase 1 MVP**. It runs end to end in dry-run mode with 
 | Policy and approvals | **Implemented** | Tiers A/B/C, default-deny scopes, hash-bound single-use approvals, kill switch |
 | Usage and cost tracking | **Implemented** | Per call, per feature, budget alerts, hypothetical Claude-only comparison |
 | Local dashboard and CLI | **Implemented** | Loopback only, token protected |
-| Notifications | **Mocked** | Dry-run outbox only. Nothing is sent to a phone |
+| Notifications | **Dry-run by default** | Local outbox. With iMessage enabled and dry-run off, texted to you |
 | Model calls | **Mocked by default** | OpenRouter adapter is written and tested against a fake server. It has **never been called live** |
 | Google Calendar | **Mocked** | In-memory mock only. Real adapter is **not implemented** |
 | Calendar events, cart, orders, outside messages | **Mocked** | Tools exist so the approval flow can be exercised. They have no real effect |
-| iMessage | **Not implemented** | Planned for Phase 2 through OpenClaw's iMessage channel |
+| iMessage | **Implemented, not yet run on the Mac** | HomePilot reads your texts and replies through the `imsg` tool. Tested against a fake `imsg` only. Off by default; see [operations](docs/operations.md#imessage-setup) |
 | H-E-B, Amazon, Marketplace, travel, bookings | **Not implemented** | Phase 3 and 4 |
 | OpenClaw audit (Phase 0) | **Blocked** | The Mac mini was not reachable when this was built. See below |
 | OpenClaw skill | **Prepared, not installed** | `src/integrations/openclaw/skill/` |
