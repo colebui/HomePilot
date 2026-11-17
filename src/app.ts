@@ -580,6 +580,13 @@ export class App {
   }
 
   /** Decide due date, window and reminder time from a parsed time phrase. Pure calendar math. */
+  /** Title of an open task that looks like the same thing, so a reply can point out the overlap. */
+  private similarOpenTask(title: string, excludeId?: string): string | undefined {
+    const open = this.openTasks().filter((t) => t.id !== excludeId);
+    const { match } = matchTasks(title, open);
+    return match?.title;
+  }
+
   private planTiming(when: ParsedWhen | undefined, remind: boolean): { fields: Partial<NewTask>; remindAt?: Date; note: string } {
     const now = this.clock.now();
     const local = inZone(now, this.tz);
@@ -630,7 +637,24 @@ export class App {
           { title: cmd.title, originalRequest: msg.text.slice(0, 2000), source: msg.channel, ...plan.fields },
           { remindAt: plan.remindAt, actor: msg.sender, correlationId },
         );
-        return { ok: true, reply: `Saved "${task.title}".${plan.note}`, feature: plan.remindAt ? 'reminders' : 'tasks' };
+        const already = this.similarOpenTask(cmd.title, task.id);
+        return { ok: true, reply: `Saved "${task.title}".${plan.note}${already ? ` You also have "${already}" on your list.` : ''}`, feature: plan.remindAt ? 'reminders' : 'tasks' };
+      }
+
+      case 'add_tasks': {
+        const lines: string[] = [];
+        let anyReminder = false;
+        for (const item of cmd.items) {
+          const already = this.similarOpenTask(item.title);
+          const plan = this.planTiming(item.when, item.remind);
+          const { task } = this.addTask(
+            { title: item.title, originalRequest: msg.text.slice(0, 2000), source: msg.channel, ...plan.fields },
+            { remindAt: plan.remindAt, actor: msg.sender, correlationId },
+          );
+          if (plan.remindAt) anyReminder = true;
+          lines.push(`${lines.length + 1}. ${task.title}.${plan.note}${already ? ` (You also have "${already}".)` : ''}`);
+        }
+        return { ok: true, reply: `Saved ${lines.length} tasks:\n${lines.join('\n')}`, feature: anyReminder ? 'reminders' : 'tasks' };
       }
 
       case 'snooze': {

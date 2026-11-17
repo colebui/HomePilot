@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { cleanTitle, matchTasks, parseCommand } from '../src/intent/commands.js';
+import { cleanTitle, commandFromLlm, matchTasks, parseCommand } from '../src/intent/commands.js';
 import { at, harness, MONDAY_9AM, type Harness } from './helpers.js';
 
 const TZ = 'America/Chicago';
@@ -154,3 +154,57 @@ describe('handleMessage', () => {
     expect(await h.say('usage')).toMatch(/This month: \$0\.0000 of \$20\.00 on models; 0 model call\(s\); \d+ of \d+ workflow\(s\) used no model\./);
   });
 });
+
+describe('several tasks in one text', () => {
+  const tue = (text: string) => parseCommand(text, at('2026-11-17T21:05:00.000Z'), TZ); // Tue 3:05 PM CST
+
+  it('splits a list with its own times into one task each', () => {
+    const c = tue('need to eat lunch, go to gym around 430, therapy at 6pm, grab groceries from heb at 7pm');
+    expect(c).toMatchObject({ type: 'add_tasks' });
+    if (c?.type !== 'add_tasks') throw new Error('expected add_tasks');
+    expect(c.items.map((i) => i.title)).toEqual(['Eat lunch', 'Go to gym', 'Therapy', 'Grab groceries from heb']);
+    expect(c.items[0]!.when).toBeUndefined();
+    expect(c.items.slice(1).map((i) => i.when?.at.toISOString())).toEqual([
+      '2026-11-17T22:30:00.000Z',
+      '2026-11-18T00:00:00.000Z',
+      '2026-11-18T01:00:00.000Z',
+    ]);
+  });
+
+  it('keeps a shopping-style list as one task, and leaves longer untimed lists to the model', () => {
+    expect(tue('remind me to buy eggs and milk tomorrow')).toMatchObject({ type: 'add_task', title: 'Buy eggs and milk' });
+    expect(tue('I need to buy eggs, milk tomorrow')).toMatchObject({ type: 'add_task' });
+    expect(tue('need to call mom, do laundry, email Sam')).toBeUndefined();
+  });
+
+  it('understands "need to" without "I"', () => {
+    expect(tue('need to renew my passport')).toMatchObject({ type: 'add_task', title: 'Renew my passport' });
+    expect(tue('gotta call the bank tomorrow')).toMatchObject({ type: 'add_task', title: 'Call the bank' });
+  });
+});
+
+describe('several tasks: model output and the reply', () => {
+  let hh: Harness | undefined;
+  afterEach(() => hh?.cleanup());
+
+  it('turns a model "tasks" list into one task each, re-parsing every time itself', () => {
+    const c = commandFromLlm(
+      { intent: 'add_task', tasks: [{ title: 'call mom', when_text: 'tomorrow at 10am' }, { title: 'do laundry' }, { title: 'email Sam' }] },
+      at(MONDAY_9AM),
+      TZ,
+    );
+    expect(c).toMatchObject({ type: 'add_tasks', items: [{ title: 'Call mom', when: { kind: 'at' } }, { title: 'Do laundry' }, { title: 'Email Sam' }] });
+  });
+
+  it('saves each task with its own reminder and points out a similar open task', async () => {
+    hh = harness({ start: '2026-11-17T21:05:00.000Z' });
+    await hh.say('add sometime to go to gym to my tasks');
+    const reply = await hh.say('need to eat lunch, go to gym around 430, therapy at 6pm, grab groceries from heb at 7pm');
+    expect(reply).toMatch(/^Saved 4 tasks:/);
+    expect(reply).toMatch(/2\. Go to gym\. I'll remind you Tue Nov 17, 4:30 PM CST\. \(You also have "Go to gym"\.\)/);
+    expect(reply).toMatch(/4\. Grab groceries from heb\. I'll remind you Tue Nov 17, 7:00 PM CST\./);
+    expect(hh.app.tasks.list({ states: ['open'] })).toHaveLength(5);
+    expect(hh.app.scheduler.list({ states: ['pending'] }).filter((j) => j.type === 'reminder.fire')).toHaveLength(3);
+  });
+});
+

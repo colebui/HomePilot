@@ -116,3 +116,33 @@ describe('parseWhen', () => {
     expect(inZone(r.at, 'Asia/Tokyo').toFormat('yyyy-LL-dd HH:mm')).toBe('2026-11-18 09:00');
   });
 });
+
+describe('parseWhen: times written the way people text them', () => {
+  const afternoon = local('2026-11-17T15:05'); // Tuesday 3:05 PM
+  const p = (text: string, n = afternoon) => parseWhen(text, n, TZ);
+
+  it('reads "430" and "around 430" as 4:30 PM when said in the afternoon', () => {
+    expect(fmt(p('go to gym around 430')!.at)).toBe('2026-11-17 16:30 -06:00');
+    expect(fmt(p('gym at 430')!.at)).toBe('2026-11-17 16:30 -06:00');
+    expect(fmt(p('gym at 430pm')!.at)).toBe('2026-11-17 16:30 -06:00');
+    expect(p('gym around 430')!.matched).toBe('around 430');
+  });
+
+  it('takes the next time a bare clock face comes round', () => {
+    expect(fmt(p('call at 4')!.at)).toBe('2026-11-17 16:00 -06:00');
+    expect(fmt(p('call at 9')!.at)).toBe('2026-11-17 21:00 -06:00');
+    expect(fmt(p('call at 9', local('2026-11-17T08:00'))!.at)).toBe('2026-11-17 09:00 -06:00');
+    expect(fmt(p('call at 4:30')!.at)).toBe('2026-11-17 16:30 -06:00');
+    expect(fmt(p('call at 4', local('2026-11-17T17:00'))!.at)).toBe('2026-11-18 16:00 -06:00');
+  });
+
+  it('reads "tomorrow at 4" as the afternoon, and keeps explicit am', () => {
+    expect(fmt(p('tomorrow at 4')!.at)).toBe('2026-11-18 16:00 -06:00');
+    expect(fmt(p('tomorrow at 4am')!.at)).toBe('2026-11-18 04:00 -06:00');
+    expect(fmt(p('tomorrow at 10')!.at)).toBe('2026-11-18 10:00 -06:00');
+  });
+
+  it('does not take a plain number for a time', () => {
+    expect(p('buy 1000 staples')).toBeUndefined();
+  });
+});
