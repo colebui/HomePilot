@@ -79,19 +79,22 @@ nothing: set the mini never to sleep (System Settings, Energy).
 
 HomePilot reads texts and replies on its own through the open-source `imsg` tool
 (`brew install steipete/tap/imsg`, macOS 14+). OpenClaw is not involved and is not changed.
-Written from the imsg documentation (2026-11-17) and tested against a fake imsg; **not yet run on
-the Mac**.
+Verified on the Mac mini on 2026-11-17: texts in, replies out, a reminder delivered on time, and
+one OpenRouter-read message.
 
 1. **Use a separate Apple ID on the Mac.** Messages on the Mac must be signed in to a different
    Apple ID from your phone's. If both are the same, your texts arrive as "sent by me" and
-   HomePilot deliberately ignores them (that is also what stops it answering itself).
+   HomePilot deliberately ignores them (that is also what stops it answering itself). Text the
+   Mac at that Apple ID's address (often an email, not a phone number); a text sent anywhere else
+   never reaches Messages on the Mac.
 2. Install imsg: `brew install steipete/tap/imsg`, then `imsg --version`.
 3. **Full Disk Access** (System Settings > Privacy & Security > Full Disk Access): add the app
    that starts HomePilot. Running by hand from Terminal, that is Terminal. For the launchd
    service it is the `node` binary itself: add the path printed by
    `realpath "$(which node)"` (with Homebrew that is a versioned path under `Cellar`, so grant it
    again after `brew upgrade node`). Reopen the app afterwards. imsg needs this to
-   read `~/Library/Messages/chat.db`.
+   read `~/Library/Messages/chat.db`. If you run HomePilot from another app's terminal (such as
+   VS Code), that app needs the access instead.
 4. In `.env`:
    ```
    HOMEPILOT_ALLOWED_SENDERS=local-cli,+15555550100   # your phone number or Apple ID email
@@ -104,7 +107,8 @@ the Mac**.
    "tasks" from your phone. The reply is printed in Terminal, not sent.
 7. Go live: set `HOMEPILOT_DRY_RUN=false`, run `./bin/homepilot imessage send-test` (the first
    send makes macOS ask whether this app may control Messages: allow it), then
-   `./bin/homepilot run` and text it again.
+   `./bin/homepilot run` and text it again. If send-test times out after 15 seconds, the prompt
+   was not answered: allow it under System Settings > Privacy & Security > Automation.
 
 How it behaves:
 

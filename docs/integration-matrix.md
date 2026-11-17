@@ -16,7 +16,7 @@ Rows below that say "docs only" or "No" were not checked on the machine.
 
 | Capability | Decision | Why | Verified? |
 | --- | --- | --- | --- |
-| Receiving and sending iMessages | **Build** (changed after the audit) | No OpenClaw iMessage channel was configured, and texts should never reach a shell-capable agent. HomePilot talks to `imsg` itself | imsg interface: docs only, tested against a fake |
+| Receiving and sending iMessages | **Build** (changed after the audit) | No OpenClaw iMessage channel was configured, and texts should never reach a shell-capable agent. HomePilot talks to `imsg` itself | Yes, on the Mac (2026-11-17) |
 | Conversational agent, model login, channels | **Reuse OpenClaw, do not change** | It is your working setup. HomePilot never edits `~/.openclaw`, the default model, or agents | No |
 | Entry point from a text to HomePilot | **Build** (changed after the audit) | `ImessageListener` reads texts directly. The OpenClaw skill draft in `src/integrations/openclaw/skill/homepilot/` is kept for reference but not used | Tests only |
 | Task and reminder storage | **Build** | Needs a schema, state transitions, idempotency and an audit trail that HomePilot controls | Yes (tests) |
@@ -32,9 +32,9 @@ Rows below that say "docs only" or "No" were not checked on the machine.
 | Integration | State | What exists | What is missing |
 | --- | --- | --- | --- |
 | OpenClaw skill | Prepared, not installed, not planned | `SKILL.md` that pipes the user's words to `homepilot say --stdin --channel openclaw` | Not needed: HomePilot handles iMessage directly |
-| iMessage outbound (reminders, nudges) | Implemented, not yet run on the Mac | `ImessageChannel` sends through `imsg rpc` to one configured handle | Install imsg, grant permissions, one test send |
-| iMessage inbound | Implemented, not yet run on the Mac | `ImessageListener`: allowlist, one-to-one chats only, at-most-once, resume cursor, hourly cap | Same as above, plus a separate Apple ID on the Mac |
-| OpenRouter | Written, never called live | Adapter, router, fallbacks, cost capture, price sync | An API key and one supervised live call |
+| iMessage outbound (reminders, nudges) | Working on the Mac | `ImessageChannel` sends through `imsg rpc` to one configured handle | Run as the launchd service |
+| iMessage inbound | Working on the Mac | `ImessageListener`: allowlist, one-to-one chats only, at-most-once, resume cursor, hourly cap | Run as the launchd service |
+| OpenRouter | Working: first live calls 2026-11-17 | Adapter, router, fallbacks, cost capture, price sync | Nothing for the fast tier |
 | Google Calendar | Mock only | Provider interface, conflict and free-time maths | OAuth flow, token storage in Keychain, real adapter |
 | H-E-B, Amazon | Not implemented | Mock cart and order tools for the approval flow | Everything. No official consumer ordering API is assumed |
 | Facebook Marketplace | Not implemented | Nothing | A compliant approach; no scraping is assumed |

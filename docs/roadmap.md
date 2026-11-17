@@ -26,15 +26,15 @@ execution, with no paid key. Met by `tests/acceptance.test.ts`; shown by `npm ru
 | Usage and health reporting | Done: CLI and dashboard |
 | Tests and README | Done: 130 tests |
 
-Left over from Phase 1, all needing the Mac: verify Keychain lookup, verify the launchd
-template, one supervised live OpenRouter call.
+Left over from Phase 1, all needing the Mac: verify Keychain lookup and the launchd template.
+The first live OpenRouter calls ran on 2026-11-17.
 
-## Phase 2: iMessage and Google Calendar. **iMessage built, calendar not started**
+## Phase 2: iMessage and Google Calendar. **iMessage working, calendar not started**
 
 1. Done: Phase 0.
-2. Done in code, not yet run on the Mac: HomePilot reads your texts and replies through `imsg`,
-   and texts reminders and nudges to you. Next: install imsg, grant permissions, test with one
-   text, then a restart test for duplicates. See [operations.md](operations.md#imessage-setup).
+2. Done and verified on the Mac (2026-11-17): HomePilot reads your texts and replies through
+   `imsg`, and texts reminders and nudges to you. Next: run it as the launchd service. See
+   [operations.md](operations.md#imessage-setup).
 3. Google Calendar read-only: OAuth desktop flow, tokens in Keychain, real adapter behind the
    existing `CalendarProvider` interface. Write scope only after you ask for it.
 4. Daily briefing and calendar-aware nudges on real data.
