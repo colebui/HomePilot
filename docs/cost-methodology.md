@@ -76,7 +76,7 @@ all, which is why the deterministic share of workflows is reported next to it.
 - `HOMEPILOT_MONTHLY_BUDGET_USD` is a hard ceiling for HomePilot's own model calls. It is
   checked before every attempt; once reached, calls are refused and recorded with outcome
   `blocked_budget`. Commands the deterministic parser understands keep working; anything else
-  gets "I didn't understand that, so I did nothing" until the next month or a higher ceiling.
+  gets "…so I did nothing" until the next month or a higher ceiling.
 - Alerts are raised once per threshold per calendar month (default 50%, 80%, 100%).
 - The ceiling is enforced from HomePilot's local record. **Also set a credit limit on the
   OpenRouter key itself.** That is the limit that holds even if HomePilot has a bug.

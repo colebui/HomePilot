@@ -40,12 +40,17 @@ export function cleanTitle(raw: string, when?: ParsedWhen): string {
   return t.length ? t[0]!.toUpperCase() + t.slice(1) : t;
 }
 
-/** "2h", "90m", "3d" style shorthand -> a phrase parseWhen understands. */
+/** "2h", "90m", "7 hours", "an hour" style durations -> a phrase parseWhen understands ("in 7 hours"). */
 function expandShorthand(s: string): string {
-  return s.replace(/\b(?:for\s+)?(\d+)\s*(m|min|mins|h|hr|hrs|d|w)\b/i, (_all, n: string, u: string) => {
-    const unit = u.toLowerCase().startsWith('m') ? 'minutes' : u.toLowerCase().startsWith('h') ? 'hours' : u.toLowerCase() === 'd' ? 'days' : 'weeks';
-    return `in ${n} ${unit}`;
-  });
+  return s.replace(
+    /\b(?:in\s+|for\s+)?(?:(\d+)\s*|(an?)\s+)(m|mins?|minutes?|h|hrs?|hours?|d|days?|w|wks?|weeks?)\b/i,
+    (_all, n: string | undefined, _article: string | undefined, u: string) => {
+      const l = u.toLowerCase();
+      const unit = l.startsWith('m') ? 'minutes' : l.startsWith('h') ? 'hours' : l.startsWith('d') ? 'days' : 'weeks';
+      const count = n ?? '1';
+      return `in ${count} ${unit}`;
+    },
+  );
 }
 
 /**
@@ -72,8 +77,11 @@ export function parseCommand(text: string, now: Date, zone: string): Command | u
     return m[1] ? { type: 'deny', code: m[1].toUpperCase() } : { type: 'deny' };
   }
 
-  if (/^(?:(?:list|show)(?: me)?\s+)?(?:my\s+)?(?:tasks|to-?dos?|to-?do list)\??$/.test(lower)) return { type: 'list' };
-  if (/^what(?:'s| is| are)?\s+(?:on\s+)?my\s+(?:tasks|list|to-?dos?|to-?do list)\??$/.test(lower)) return { type: 'list' };
+  const LISTS = String.raw`(?:tasks?|reminders?|to-?dos?|to-?do list|list)`;
+  if (new RegExp(String.raw`^(?:(?:list|show|check)(?: me)?\s+)?(?:all\s+)?(?:my\s+)?(?:tasks|reminders|to-?dos?|to-?do list)\??$`).test(lower)) return { type: 'list' };
+  if (new RegExp(String.raw`^what(?:'s| is| are)?\s+(?:on\s+)?(?:all\s+)?my\s+${LISTS}\??$`).test(lower)) return { type: 'list' };
+  if (new RegExp(String.raw`^(?:what|which)\s+${LISTS}\s+(?:do|have)\s+i\s*(?:got|have|set|got set)?\b.*$`).test(lower)) return { type: 'list' };
+  if (/^(?:what do i have to do|what's left|what is left|anything (?:due|left))\b.*$/.test(lower)) return { type: 'list' };
 
   if (/^what (?:should|can|could) i (?:do|work on)\b/.test(lower) || /\bfree (?:hour|time|\d+\s*min)/.test(lower)) {
     const mins = /(\d+)\s*(?:min|minutes)/.exec(lower);
@@ -109,6 +117,11 @@ export function parseCommand(text: string, now: Date, zone: string): Command | u
   };
 
   if ((m = /^remind me\s+(?:to\s+|about\s+)?(.+)$/i.exec(t))) return add(m[1]!, true);
+  if ((m = /^(?:add|put)\s+(.+?)\s+(?:to|on)\s+(?:my|the)\s+(?:shopping|grocery|groceries)\s+list$/i.exec(t))) {
+    // No separate shopping list yet (Phase 3): it becomes a task, so it is not lost.
+    const item = m[1]!.trim();
+    return add(/^(?:buy|get|pick up)\b/i.test(item) ? item : `buy ${item}`, false);
+  }
   if ((m = /^(?:add|put)\s+(.+?)\s+(?:to|on)\s+my\s+(?:tasks?|to-?dos?|to-?do list|list)$/i.exec(t))) return add(m[1]!, false);
   if ((m = /^(?:todo|to-do|task|add task|new task)\s*[: ]\s*(.+)$/i.exec(t))) return add(m[1]!, false);
   if ((m = /^i\s+(?:need|have|want|should|gotta|got)\s+(?:to\s+)?(.+)$/i.exec(t))) return add(m[1]!, false);

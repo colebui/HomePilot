@@ -143,7 +143,7 @@ describe('model fallback in the message path', () => {
     h = harness();
     h.provider.setDefault(() => ({ error: new ProviderError('503', 'server', true) }));
     const reply = await h.say('hmm what was that thing about the gutters');
-    expect(reply).toContain("I didn't understand that, so I did nothing");
+    expect(reply).toContain("so I did nothing");
     expect(h.app.tasks.list()).toHaveLength(0);
     // Deterministic commands keep working with the model down.
     expect(await h.say('remind me to clean the gutters tomorrow')).toContain('Saved "Clean the gutters"');

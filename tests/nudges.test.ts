@@ -216,7 +216,8 @@ describe('nudges through the scheduler', () => {
     h.app.addTask({ title: 'Deep clean garage', estimatedMinutes: 180, priority: 4 });
     h.app.addTask({ title: 'Book dentist', estimatedMinutes: 10, priority: 2 });
     const reply = await h.say('what should I do with my free hour?');
-    expect(reply).toMatch(/the time you said you have/);
+    expect(reply).toMatch(/For your free 60 min/);
+    expect(reply).not.toMatch(/calendar checked/);
     expect(reply).toMatch(/Book dentist/);
     expect(reply).not.toMatch(/Deep clean garage/);
     expect(h.channel.delivered).toHaveLength(0); // answering a question sends no notification
