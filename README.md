@@ -80,6 +80,10 @@ Things you can say: "remind me to X tomorrow at 10am", "I need to X before Frida
 "done with X", "snooze that until tomorrow 8am", "dismiss X", "stop reminding me about X", "what should I do with my free
 hour?", "pause", "resume", "usage", "approve CODE", "deny CODE".
 
+Most messages are understood by plain code and never reach a model. When one does, the reply
+ends with `(read by <model>)`, naming the model that actually answered (a fallback, if the first
+choice failed). Turn that off with `HOMEPILOT_REPLY_SHOWS_MODEL=false`.
+
 ## Credentials: what is needed and where each one goes
 
 **To run the tests, the demo and dry-run mode you need no credentials at all.**
