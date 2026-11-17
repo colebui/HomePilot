@@ -158,4 +158,28 @@ describe('model fallback in the message path', () => {
     const wf = h.app.db.get<{ deterministic: number; llm_calls: number; simulated: number; feature: string }>("SELECT deterministic, llm_calls, simulated, feature FROM workflow_runs WHERE workflow = 'message'")!;
     expect(wf).toEqual({ deterministic: 0, llm_calls: 1, simulated: 1, feature: 'reminders' });
   });
+
+  it('a reply says which model read the message, and only when a model did', async () => {
+    h = harness();
+    // Plain code understood it: no note.
+    expect(await h.say('remind me to call mom tomorrow')).not.toContain('read by');
+    // The first fast model fails, so the fallback serves it; the note names the model that actually answered.
+    const [first, second] = h.app.config.models.fast;
+    h.provider.enqueue({ error: new ProviderError('503', 'server', true) }, { error: new ProviderError('503', 'server', true) });
+    h.provider.onModel(second!, () => ({ text: JSON.stringify({ intent: 'add_task', title: 'Clean the gutters', when_text: 'next week' }) }));
+    const r = await h.app.handleMessage({ sender: 'local-cli', channel: 'cli', text: 'gutters want cleaning next week' });
+    expect(r.understoodBy).toBe('model');
+    expect(r.model).toBe(second);
+    expect(r.model).not.toBe(first);
+    expect(r.reply).toContain('Saved "Clean the gutters"');
+    expect(r.reply!.endsWith(`\n(read by ${second})`)).toBe(true);
+  });
+
+  it('the model note can be turned off', async () => {
+    h = harness({ env: { HOMEPILOT_REPLY_SHOWS_MODEL: 'false' } });
+    h.provider.enqueue({ text: JSON.stringify({ intent: 'list' }) });
+    const r = await h.app.handleMessage({ sender: 'local-cli', channel: 'cli', text: 'what have I got on' });
+    expect(r.model).toBeDefined();
+    expect(r.reply).not.toContain('read by');
+  });
 });

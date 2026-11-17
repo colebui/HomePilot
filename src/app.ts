@@ -57,6 +57,8 @@ export interface MessageResult {
   correlationId: string | null;
   /** How the message was understood. */
   understoodBy: 'deterministic' | 'model' | 'not_understood' | 'rejected';
+  /** The model that read the message, as the provider reported it. Absent when no model was used. */
+  model?: string;
   command?: Command['type'];
 }
 
@@ -476,6 +478,12 @@ export class App {
   // Inbound messages (the one command path; CLI, HTTP and later iMessage all use it)
   // -------------------------------------------------------------------------
 
+  /** Say which model read the message, when one did and the setting is on. Plain code adds no note. */
+  private withModelNote(reply: string, model: string | undefined): string {
+    if (!model || !this.config.replyShowsModel) return reply;
+    return `${reply}\n(read by ${model})`;
+  }
+
   async handleMessage(msg: InboundMessage): Promise<MessageResult> {
     if (!this.config.allowedSenders.includes(msg.sender)) {
       // Unknown senders get no reply and can run nothing. The message text is not stored.
@@ -487,6 +495,7 @@ export class App {
     const now = this.clock.now();
     try {
       let understoodBy: MessageResult['understoodBy'] = 'deterministic';
+      let model: string | undefined;
       let cmd = parseCommand(msg.text, now, this.tz);
 
       if (!cmd && msg.text.trim()) {
@@ -502,7 +511,10 @@ export class App {
         });
         if (res.ok) {
           cmd = commandFromLlm(res.value, now, this.tz);
-          if (cmd) understoodBy = 'model';
+          if (cmd) {
+            understoodBy = 'model';
+            model = res.model;
+          }
         }
       }
 
@@ -518,16 +530,27 @@ export class App {
         wf.finish({ succeeded: false, detail: `${cmd.type} refused on agent channel`, feature: 'approvals' });
         return {
           authorized: true,
-          reply: `"${cmd.type}" can't be done through the assistant. Use the HomePilot dashboard or run it yourself in a terminal, so that only you can say yes.`,
+          reply: this.withModelNote(
+            `"${cmd.type}" can't be done through the assistant. Use the HomePilot dashboard or run it yourself in a terminal, so that only you can say yes.`,
+            model,
+          ),
           correlationId: wf.correlationId,
           understoodBy,
+          ...(model ? { model } : {}),
           command: cmd.type,
         };
       }
 
       const out = await this.execute(cmd, msg, wf.correlationId);
       wf.finish({ succeeded: out.ok, detail: cmd.type, feature: out.feature });
-      return { authorized: true, reply: out.reply, correlationId: wf.correlationId, understoodBy, command: cmd.type };
+      return {
+        authorized: true,
+        reply: this.withModelNote(out.reply, model),
+        correlationId: wf.correlationId,
+        understoodBy,
+        ...(model ? { model } : {}),
+        command: cmd.type,
+      };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       wf.finish({ succeeded: false, detail: message });

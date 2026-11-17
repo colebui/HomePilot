@@ -78,6 +78,7 @@ const EnvSchema = z.object({
   HOMEPILOT_DRY_RUN: bool(true),
   HOMEPILOT_ALLOWED_SENDERS: csv(['local-cli']),
   HOMEPILOT_AGENT_CHANNELS: csv(['openclaw']),
+  HOMEPILOT_REPLY_SHOWS_MODEL: bool(true),
 
   HOMEPILOT_QUIET_HOURS_START: hhmm('22:00'),
   HOMEPILOT_QUIET_HOURS_END: hhmm('08:00'),
@@ -124,6 +125,8 @@ export interface Config {
    * Approvals and "resume" are refused on these: a model must never be able to say yes for you.
    */
   agentChannels: string[];
+  /** Add "(read by <model>)" to a reply when a model, not plain code, understood the message. */
+  replyShowsModel: boolean;
   nudges: {
     quietStart: string;
     quietEnd: string;
@@ -178,6 +181,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     dryRun: e.HOMEPILOT_DRY_RUN,
     allowedSenders: e.HOMEPILOT_ALLOWED_SENDERS,
     agentChannels: e.HOMEPILOT_AGENT_CHANNELS,
+    replyShowsModel: e.HOMEPILOT_REPLY_SHOWS_MODEL,
     nudges: {
       quietStart: e.HOMEPILOT_QUIET_HOURS_START,
       quietEnd: e.HOMEPILOT_QUIET_HOURS_END,
