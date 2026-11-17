@@ -30,6 +30,8 @@ export const DASHBOARD_HTML = `<!doctype html>
   button.ghost { background:transparent; color:var(--accent); }
   ul { margin:0; padding-left:18px; } li { margin:3px 0; }
   pre { white-space:pre-wrap; margin:10px 0 0; font:13px/1.4 ui-monospace,Menlo,Consolas,monospace; }
+  .day { margin-bottom: 12px; } .day h3 { font-size: 13px; margin: 0 0 4px; color: var(--muted); font-weight: 600; }
+  .item { display: flex; gap: 12px; padding: 3px 0; border-bottom: 1px solid var(--line); } .item .time { min-width: 7.5em; font-variant-numeric: tabular-nums; color: var(--muted); }
 </style>
 </head>
 <body>
@@ -60,7 +62,7 @@ export const DASHBOARD_HTML = `<!doctype html>
     <div class="card"><h2>By feature</h2><table id="byFeature"></table></div>
   </div>
   <div class="grid">
-    <div class="card"><h2>Open tasks</h2><table id="tasks"></table></div>
+    <div class="card"><h2>Your tasks by day</h2><div id="agenda"></div></div>
     <div class="card"><h2>Outbox (latest)</h2><table id="outbox"></table></div>
   </div>
   <div class="card"><h2>Price assumptions (USD per million tokens)</h2><table id="prices"></table>
@@ -76,10 +78,24 @@ function table(el, head, rows) {
   if (!rows.length) { const r = el.insertRow(); const c = r.insertCell(); c.colSpan = head.length; c.textContent = 'Nothing yet'; c.className = 'muted'; }
   rows.forEach((cells) => { const r = el.insertRow(); cells.forEach((v, i) => { const c = r.insertCell(); c.textContent = String(v); if (i === 0) c.className = 'wrap'; }); });
 }
+function renderAgenda(el, groups) {
+  if (!groups.length) { el.textContent = 'No open tasks.'; return; }
+  el.replaceChildren(...groups.map((g) => {
+    const box = document.createElement('div'); box.className = 'day';
+    const h = document.createElement('h3'); h.textContent = g.label; box.append(h);
+    for (const i of g.items) {
+      const row = document.createElement('div'); row.className = 'item';
+      const t = document.createElement('span'); t.className = 'time'; t.textContent = i.time || '·';
+      const n = document.createElement('span'); n.textContent = i.title + (i.note ? ' (' + i.note + ')' : '');
+      row.append(t, n); box.append(row);
+    }
+    return box;
+  }));
+}
 let paused = false;
 async function load() {
   try {
-    const [h, u, tasks, outbox] = await Promise.all([get('/api/health'), get('/api/usage'), get('/api/tasks'), get('/api/outbox')]);
+    const [h, u, agenda, outbox] = await Promise.all([get('/api/health'), get('/api/usage'), get('/api/agenda'), get('/api/outbox')]);
     paused = h.paused;
     $('sub').textContent = h.timezone + ' · ' + (h.dryRun ? 'dry-run mode' : 'LIVE mode') + ' · model provider: ' + h.modelProvider.name + ' · calendar: ' + (h.calendar.connected ? h.calendar.name : 'not connected');
     $('status').textContent = h.paused ? 'Paused' : h.ok ? 'OK' : 'Degraded';
@@ -100,8 +116,7 @@ async function load() {
     const g = (r) => [r.key, r.calls, r.inputTokens, r.outputTokens, r.cachedTokens, r.realCostUsd ? usd(r.realCostUsd) : r.simulatedCostUsd ? usd(r.simulatedCostUsd) + ' sim' : '$0.00'];
     table($('byModel'), ['Model', 'Calls', 'In', 'Out', 'Cached', 'Cost'], u.byModel.map(g));
     table($('byFeature'), ['Feature', 'Calls', 'In', 'Out', 'Cached', 'Cost'], u.byFeature.map(g));
-    const when = (s) => (s ? new Date(s).toLocaleString() : '');
-    table($('tasks'), ['Task', 'State', 'Due'], tasks.map((t) => [t.title, t.state, when(t.dueAt || t.windowEnd)]));
+    renderAgenda($('agenda'), agenda);
     table($('outbox'), ['Message', 'Kind', 'State'], outbox.slice(0, 8).map((n) => [n.body, n.kind + (n.dryRun ? ' (dry-run)' : ''), n.state]));
     table($('prices'), ['Model', 'In', 'Out', 'Cache read', 'Source', 'As of'], u.priceAssumptions.map((p) => [p.model, p.inputPerMTok, p.outputPerMTok, p.cacheReadPerMTok ?? 'unknown', p.source, p.asOf]));
   } catch (e) { $('sub').textContent = 'Could not load: ' + e.message; }

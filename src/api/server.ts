@@ -111,6 +111,8 @@ export function createApiServer(app: App, opts: { token: string; port: number })
             return json(res, 200, app.health());
           case '/api/usage':
             return json(res, 200, app.usageReport());
+          case '/api/agenda':
+            return json(res, 200, app.agenda());
           case '/api/tasks':
             return json(res, 200, app.tasks.list({ states: ['open', 'snoozed'] }));
           case '/api/outbox':

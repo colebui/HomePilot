@@ -2,6 +2,7 @@ import { DateTime } from 'luxon';
 import { SystemClock, type Clock } from './clock.js';
 import type { Config } from './config.js';
 import { openDatabase, type Db } from './db/database.js';
+import { buildAgenda, renderAgenda, type AgendaGroup } from './domain/agenda.js';
 import { ApprovalStore, type Approval } from './domain/approvals.js';
 import { EventLog } from './domain/events.js';
 import { PreferenceStore, SystemState } from './domain/preferences.js';
@@ -558,6 +559,11 @@ export class App {
     }
   }
 
+  /** Open tasks grouped by day and sorted by time (the "tasks" reply and the dashboard). */
+  agenda(): AgendaGroup[] {
+    return buildAgenda(this.openTasks(), this.clock.now(), this.tz);
+  }
+
   private openTasks(): Task[] {
     return this.tasks.list({ states: ['open', 'snoozed'] });
   }
@@ -689,12 +695,7 @@ export class App {
       case 'list': {
         const open = this.openTasks();
         if (open.length === 0) return { ok: true, reply: 'You have no open tasks.', feature: 'tasks' };
-        const lines = open.map((t, i) => {
-          const due = t.dueAt ? `, due ${formatLocal(t.dueAt, this.tz)}` : t.windowEnd ? `, by ${formatLocal(t.windowEnd, this.tz)}` : '';
-          const sn = t.state === 'snoozed' && t.snoozeUntil ? `, snoozed until ${formatLocal(t.snoozeUntil, this.tz)}` : '';
-          return `${i + 1}. ${t.title}${due}${sn}${t.doNotRemind ? ', reminders off' : ''}`;
-        });
-        return { ok: true, reply: `Open tasks:\n${lines.join('\n')}`, feature: 'tasks' };
+        return { ok: true, reply: renderAgenda(this.agenda()), feature: 'tasks' };
       }
 
       case 'suggest': {
