@@ -88,7 +88,9 @@ the Mac**.
 2. Install imsg: `brew install steipete/tap/imsg`, then `imsg --version`.
 3. **Full Disk Access** (System Settings > Privacy & Security > Full Disk Access): add the app
    that starts HomePilot. Running by hand from Terminal, that is Terminal. For the launchd
-   service it is the `node` binary (`which node`). Reopen the app afterwards. imsg needs this to
+   service it is the `node` binary itself: add the path printed by
+   `realpath "$(which node)"` (with Homebrew that is a versioned path under `Cellar`, so grant it
+   again after `brew upgrade node`). Reopen the app afterwards. imsg needs this to
    read `~/Library/Messages/chat.db`.
 4. In `.env`:
    ```
