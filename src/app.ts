@@ -520,7 +520,7 @@ export class App {
 
       if (!cmd) {
         wf.finish({ succeeded: false, detail: 'not understood', feature: 'intent' });
-        return { authorized: true, reply: `I didn't understand that, so I did nothing. ${HELP}`, correlationId: wf.correlationId, understoodBy: 'not_understood' };
+        return { authorized: true, reply: `I only handle tasks and reminders, and I couldn't read that as one, so I did nothing. ${HELP}`, correlationId: wf.correlationId, understoodBy: 'not_understood' };
       }
 
       // An agent-relayed channel can add tasks and ask questions, but it can never approve an
@@ -688,9 +688,10 @@ export class App {
         });
         if (d.suppressed === 'paused') return { ok: true, reply: 'HomePilot is paused. Say "resume" first.', feature: 'nudges' };
         if (d.suppressed === 'busy_now') return { ok: true, reply: 'Your calendar shows you are busy right now.', feature: 'nudges' };
-        if (d.candidates.length === 0) return { ok: true, reply: `Nothing on your list fits right now (${d.calendarNote}).`, feature: 'nudges' };
+        if (d.candidates.length === 0) return { ok: true, reply: stated ? `Nothing on your list fits in ${stated} min.` : `Nothing on your list fits right now (${d.calendarNote}).`, feature: 'nudges' };
         const top = d.candidates.slice(0, 3).map((c, i) => `${i + 1}. ${c.title}: ${c.reasons.join('; ')}`);
-        return { ok: true, reply: `Suggestions (${d.calendarNote}):\n${top.join('\n')}`, feature: 'nudges' };
+        const header = stated ? `For your free ${stated} min, I'd suggest:` : `Suggestions (${d.calendarNote}):`;
+        return { ok: true, reply: `${header}\n${top.join('\n')}`, feature: 'nudges' };
       }
 
       case 'approve':

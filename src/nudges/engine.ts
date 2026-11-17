@@ -208,7 +208,7 @@ export function evaluateNudges(input: NudgeInput): NudgeDecision {
     if (fits === true) {
       score += 15;
       reasons.push(`fits in your next ${freeMinutes} free min`);
-      reasons.push(t.estimatedMinutes ? `takes about ${estimate} min` : `effort assumed to be ${estimate} min, none saved`);
+      reasons.push(t.estimatedMinutes ? `takes about ${estimate} min` : `no time estimate, so I assumed ${estimate} min`);
     } else {
       score -= 5;
       reasons.push('calendar not checked, so your availability is unverified');

@@ -22,6 +22,12 @@ describe('parseCommand (deterministic, no model)', () => {
     expect(parse('done')).toEqual({ type: 'done', ref: null });
     expect(parse('Done!')).toEqual({ type: 'done', ref: null });
     expect(parse('snooze 2h')).toMatchObject({ type: 'snooze', ref: null, when: { kind: 'at' } });
+    expect(parse('snooze 7 hours')).toMatchObject({ type: 'snooze', ref: null, when: { kind: 'at' } });
+    expect(parse('snooze for 30 minutes')).toMatchObject({ type: 'snooze', ref: null, when: { kind: 'at' } });
+    expect(parse('snooze an hour')).toMatchObject({ type: 'snooze', ref: null, when: { kind: 'at' } });
+    expect(parse('snooze 2 days')).toMatchObject({ type: 'snooze', ref: null, when: { kind: 'at' } });
+    expect(parse('snooze the dentist 3 hours')).toMatchObject({ type: 'snooze', ref: 'dentist', when: { kind: 'at' } });
+    expect(parse('snooze until 9 am')).toMatchObject({ type: 'snooze', ref: null });
     expect(parse('snooze')).toEqual({ type: 'snooze', ref: null });
     expect(parse('dismiss')).toEqual({ type: 'dismiss', ref: null, forever: false });
     expect(parse('snooze the dentist until tomorrow 8am')).toMatchObject({ type: 'snooze', ref: 'dentist' });
@@ -36,6 +42,16 @@ describe('parseCommand (deterministic, no model)', () => {
     expect(parse('resume')).toEqual({ type: 'resume' });
     expect(parse('tasks')).toEqual({ type: 'list' });
     expect(parse("what's on my list?")).toEqual({ type: 'list' });
+    expect(parse('what reminders do i have')).toEqual({ type: 'list' });
+    expect(parse('What reminders do I have?')).toEqual({ type: 'list' });
+    expect(parse('reminders')).toEqual({ type: 'list' });
+    expect(parse('show my reminders')).toEqual({ type: 'list' });
+    expect(parse('what are my reminders')).toEqual({ type: 'list' });
+    expect(parse('what tasks do i have today')).toEqual({ type: 'list' });
+    expect(parse('what do i have to do')).toEqual({ type: 'list' });
+    expect(parse('add butter to my shopping list')).toMatchObject({ type: 'add_task', title: 'Buy butter', remind: false });
+    expect(parse('put eggs on the grocery list')).toMatchObject({ type: 'add_task', title: 'Buy eggs' });
+    expect(parse('add pick up milk to my shopping list')).toMatchObject({ type: 'add_task', title: 'Pick up milk' });
     expect(parse('usage')).toEqual({ type: 'usage' });
   });
 
