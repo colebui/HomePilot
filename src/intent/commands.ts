@@ -4,6 +4,10 @@ import { parseWhen, type ParsedWhen } from '../time.js';
 export type Command =
   | { type: 'add_task'; title: string; when?: ParsedWhen; remind: boolean }
   | { type: 'add_tasks'; items: Array<{ title: string; when?: ParsedWhen; remind: boolean }> }
+  /** Several different requests in one text, run in order: "done with gym and remind me to call mom at 5". */
+  | { type: 'multi'; commands: Command[]; unparsed?: string[] }
+  /** "going to pick up groceries now": the user is on it, so stop reminding but keep the task. */
+  | { type: 'started'; ref: string | null }
   | { type: 'snooze'; ref: string | null; when?: ParsedWhen }
   | { type: 'done'; ref: string | null }
   | { type: 'dismiss'; ref: string | null; forever: boolean }
@@ -54,11 +58,65 @@ function expandShorthand(s: string): string {
   );
 }
 
+/** Commands that must arrive on their own: never bundled with other requests in one text. */
+const ALONE = new Set<Command['type']>(['approve', 'deny', 'resume', 'pause']);
+
+/**
+ * Where a new request starts inside a longer text: after a separator ("and", "also", "then",
+ * a comma, a full stop or a new line), at a word that opens a command. Splitting only there
+ * keeps "buy eggs, milk and bread" or "call mom and dad" in one piece.
+ */
+const OPENER = String.raw`(?:remind me|remember to|i'?m done|i am done|done|finished|completed?|mark|snooze|dismiss|don'?t remind|do not remind|stop reminding|add|put|i need|need to|i have to|have to|i gotta|gotta|i should|i want to|todo|to-do|new task|what(?:'s| is| are)? on my|what (?:reminders|tasks|to-?dos?)|show (?:me )?my|list my|my (?:tasks|reminders))\b|(?:tasks|reminders|to-?dos?)\??\s*$`;
+const SPLIT = new RegExp(
+  String.raw`(?:\s*[\n;.!?]+\s*|\s*,\s*(?:and\s+|also\s+|then\s+|and then\s+|plus\s+)?|\s+(?:and also|and then|and|also|then|plus)\s+)(?=${OPENER})`,
+  'i',
+);
+
 /**
  * Deterministic command parser. No model call. Returns undefined when the text is not one of
  * the known shapes, in which case the caller may ask a small model to classify it.
+ * A text holding several requests becomes { type: 'multi' } when every part is understood.
  */
 export function parseCommand(text: string, now: Date, zone: string): Command | undefined {
+  const parts = text
+    .trim()
+    .split(SPLIT)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  if (parts.length >= 2) {
+    const cmds = parts.map((p) => parseSingle(p, now, zone));
+    const known = cmds.filter((c): c is Command => Boolean(c));
+    if (known.some((c) => ALONE.has(c.type))) return undefined;
+    if (known.length === parts.length) return { type: 'multi', commands: known };
+    // Some part was not understood. The caller asks the model to read the whole text, and
+    // falls back to doing the parts that were understood and naming the rest.
+    if (known.length > 0) return { type: 'multi', commands: known, unparsed: parts.filter((_p, i) => !cmds[i]) };
+    return undefined;
+  }
+  const single = parseSingle(text, now, zone);
+  if (single && single.type !== 'add_task' && single.type !== 'add_tasks') return single;
+
+  // "gym done, therapy done, going to pick up groceries now": updates that do not start with a
+  // command word. Split on every separator and keep the result only if it contains at least one
+  // update to an existing task, so a plain list ("eggs, milk and bread") is never broken up.
+  const loose = text
+    .trim()
+    .split(/\s*(?:[\n;.!?]+|,\s*(?:and\s+|then\s+)?|\s+and then\s+|\s+then\s+|\s+and\s+(?=\S+(?:\s+\S+)?\s+(?:is\s+|are\s+)?(?:done|finished|completed?)\b))\s*/i)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  if (loose.length >= 2) {
+    const cmds = loose.map((p) => parseSingle(p, now, zone));
+    const known = cmds.filter((c): c is Command => Boolean(c));
+    const updates = known.filter((c) => c.type === 'done' || c.type === 'started' || c.type === 'snooze' || c.type === 'dismiss');
+    if (updates.length >= 1 && !known.some((c) => ALONE.has(c.type))) {
+      const unparsed = loose.filter((_p, i) => !cmds[i]);
+      return { type: 'multi', commands: known, ...(unparsed.length ? { unparsed } : {}) };
+    }
+  }
+  return single;
+}
+
+function parseSingle(text: string, now: Date, zone: string): Command | undefined {
   const raw = text.trim().replace(/\s+/g, ' ');
   const t = raw.replace(/[.!]+$/, '');
   const lower = t.toLowerCase().replace(/[‘’]/g, "'");
@@ -109,6 +167,13 @@ export function parseCommand(text: string, now: Date, zone: string): Command | u
     return { type: 'done', ref: cleanRef(m[1] ?? '') };
   }
   if ((m = /^mark\s+(.*?)\s+(?:as\s+)?(?:done|complete|completed)$/i.exec(t))) return { type: 'done', ref: cleanRef(m[1]!) };
+  // "gym done", "therapy is done", "finished the laundry" handled above; this is the word-last form.
+  if ((m = /^(?:the\s+|my\s+)?(.+?)\s+(?:is\s+|are\s+|was\s+)?(?:done|finished|complete|completed|taken care of)$/i.exec(t)) && !/^(?:i|i'?m|i am)$/i.test(m[1]!.trim())) {
+    return { type: 'done', ref: cleanRef(m[1]!) };
+  }
+  if ((m = /^(?:i'?m\s+|i am\s+|im\s+)?(?:going to|gonna|heading to|about to|on my way to|off to|doing|starting|working on)\s+(?:go\s+|do\s+)?(.+?)\s+(?:now|right now)$/i.exec(t))) {
+    return { type: 'started', ref: cleanRef(m[1]!) };
+  }
 
   const one = (body: string, remind: boolean): { title: string; when?: ParsedWhen; remind: boolean } | undefined => {
     const when = parseWhen(body, now, zone);
@@ -144,9 +209,8 @@ export function parseCommand(text: string, now: Date, zone: string): Command | u
   return undefined;
 }
 
-/** What a small model may return when the deterministic parser gives up. Dates stay as TEXT. */
-export const LlmIntentSchema = z.object({
-  intent: z.enum(['add_task', 'snooze', 'done', 'dismiss', 'list', 'suggest', 'unknown']),
+const SingleIntentSchema = z.object({
+  intent: z.enum(['add_task', 'snooze', 'done', 'dismiss', 'started', 'list', 'suggest', 'unknown']),
   title: z.string().max(300).optional(),
   /** The user's own time words, copied verbatim. HomePilot does the date math, not the model. */
   when_text: z.string().max(120).optional(),
@@ -158,20 +222,34 @@ export const LlmIntentSchema = z.object({
     .max(10)
     .optional(),
 });
+
+/** What a small model may return when the deterministic parser gives up. Dates stay as TEXT. */
+export const LlmIntentSchema = SingleIntentSchema.extend({
+  intent: z.enum(['add_task', 'snooze', 'done', 'dismiss', 'started', 'list', 'suggest', 'multi', 'unknown']),
+  /** intent "multi": several different requests in one message, in the order given. One level only. */
+  requests: z.array(SingleIntentSchema).min(1).max(10).optional(),
+});
 export type LlmIntent = z.infer<typeof LlmIntentSchema>;
 
 export const INTENT_SYSTEM_PROMPT = [
   'You classify one text message sent to a personal task assistant by its owner.',
-  'Reply with ONLY a JSON object: {"intent": "add_task"|"snooze"|"done"|"dismiss"|"list"|"suggest"|"unknown",',
+  'Reply with ONLY a JSON object: {"intent": "add_task"|"snooze"|"done"|"dismiss"|"started"|"list"|"suggest"|"multi"|"unknown",',
   '"title"?: string, "when_text"?: string, "ref"?: string, "remind"?: boolean,',
-  '"tasks"?: [{"title": string, "when_text"?: string, "remind"?: boolean}]}.',
+  '"tasks"?: [{"title": string, "when_text"?: string, "remind"?: boolean}], "requests"?: [...]}.',
   'If the message lists several separate things to do, use intent "add_task" with one "tasks" entry per thing, each with its own time words; never merge them into one title.',
+  'If the message holds different kinds of requests (for example marking one task done and adding another), use intent "multi" with "requests": [one object per request, each shaped like the top-level object without "requests"], in the order written.',
   'title: the task in a few words. when_text: copy the user\'s time words exactly, do not compute dates.',
+  '"started" means the owner is doing an existing task right now ("heading to the gym now").',
   'ref: words identifying an existing task. Use "unknown" if unsure. Never invent details.',
 ].join(' ');
 
 /** Turn a validated model classification into a Command, re-parsing any date deterministically. */
 export function commandFromLlm(intent: LlmIntent, now: Date, zone: string): Command | undefined {
+  if (intent.intent === 'multi') {
+    const cmds = (intent.requests ?? []).map((r) => commandFromLlm(r, now, zone)).filter((c): c is Command => Boolean(c));
+    if (cmds.length === 0) return undefined;
+    return cmds.length === 1 ? cmds[0] : { type: 'multi', commands: cmds };
+  }
   const when = intent.when_text ? parseWhen(intent.when_text, now, zone) : undefined;
   const w = when ? { when } : {};
   switch (intent.intent) {
@@ -198,6 +276,8 @@ export function commandFromLlm(intent: LlmIntent, now: Date, zone: string): Comm
       return { type: 'done', ref: intent.ref ? cleanRef(intent.ref) : null };
     case 'dismiss':
       return { type: 'dismiss', ref: intent.ref ? cleanRef(intent.ref) : null, forever: false };
+    case 'started':
+      return { type: 'started', ref: intent.ref ? cleanRef(intent.ref) : null };
     case 'list':
       return { type: 'list' };
     case 'suggest':

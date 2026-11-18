@@ -499,6 +499,11 @@ export class App {
       let model: string | undefined;
       let cmd = parseCommand(msg.text, now, this.tz);
 
+      // Part of a several-request text was not understood: let the model read the whole text,
+      // and keep the parser's partial reading if the model cannot do better.
+      const partial = cmd?.type === 'multi' && cmd.unparsed?.length ? cmd : undefined;
+      if (partial) cmd = undefined;
+
       if (!cmd && msg.text.trim()) {
         // Only now is a model worth paying for. It returns a classification, never an action.
         const res = await this.router.completeStructured({
@@ -517,6 +522,7 @@ export class App {
             model = res.model;
           }
         }
+        if (!cmd && partial) cmd = partial;
       }
 
       if (!cmd) {
@@ -663,6 +669,27 @@ export class App {
         return { ok: true, reply: `Saved ${lines.length} tasks:\n${lines.join('\n')}`, feature: anyReminder ? 'reminders' : 'tasks' };
       }
 
+      case 'multi': {
+        const replies: string[] = [];
+        let ok = true;
+        let feature = 'tasks';
+        for (const sub of cmd.commands) {
+          const out = await this.execute(sub, msg, correlationId);
+          replies.push(out.reply);
+          ok &&= out.ok;
+          if (out.feature !== 'tasks') feature = out.feature;
+        }
+        for (const u of cmd.unparsed ?? []) replies.push(`I didn't understand "${u}", so I left that alone.`);
+        return { ok, reply: replies.join('\n'), feature };
+      }
+
+      case 'started': {
+        const r = this.resolveTask(cmd.ref);
+        if ('problem' in r) return { ok: false, reply: r.problem, feature: 'tasks' };
+        this.dismissTask(r.task.id, true, msg.sender);
+        return { ok: true, reply: `Got it, you're on "${r.task.title}", so no more reminders for it. Text "done" when you finish.`, feature: 'tasks' };
+      }
+
       case 'snooze': {
         const r = this.resolveTask(cmd.ref);
         if ('problem' in r) return { ok: false, reply: r.problem, feature: 'tasks' };
@@ -674,7 +701,19 @@ export class App {
 
       case 'done': {
         const r = this.resolveTask(cmd.ref);
-        if ('problem' in r) return { ok: false, reply: r.problem, feature: 'tasks' };
+        if ('problem' in r) {
+          // "gym and therapy done": several tasks named at once. Complete them all only when
+          // every name points to exactly one task; otherwise ask, as before.
+          const names = cmd.ref?.split(/\s*(?:,|&|\band\b|\bplus\b)\s*/i).filter((n) => n.trim()) ?? [];
+          if (names.length >= 2) {
+            const found = names.map((n) => this.resolveTask(n));
+            if (found.every((f): f is { task: Task } => 'task' in f) && new Set(found.map((f) => f.task.id)).size === found.length) {
+              for (const f of found) this.completeTask(f.task.id, msg.sender);
+              return { ok: true, reply: `Marked ${found.map((f) => `"${f.task.title}"`).join(' and ')} done. Their reminders are cancelled.`, feature: 'tasks' };
+            }
+          }
+          return { ok: false, reply: r.problem, feature: 'tasks' };
+        }
         this.completeTask(r.task.id, msg.sender);
         return { ok: true, reply: `Marked "${r.task.title}" done. Its reminders are cancelled.`, feature: 'tasks' };
       }
