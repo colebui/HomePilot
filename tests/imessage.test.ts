@@ -8,7 +8,7 @@ import { ImessageListener, type ImsgMessage } from '../src/integrations/imessage
 import { ImsgRpc, ImsgRpcError, MAY_HAVE_COMPLETED, type ImsgTransport } from '../src/integrations/imessage/rpc.js';
 import { harness, type Harness } from './helpers.js';
 
-const COLE = '+15125550100';
+const OWNER = '+15125550100';
 
 /** In-memory stand-in for `imsg rpc`. Records requests; tests push notifications into it. */
 class FakeImsg implements ImsgTransport {
@@ -34,7 +34,7 @@ class FakeImsg implements ImsgTransport {
   onExit(): void {}
   close(): void {}
   push(message: Partial<ImsgMessage> & { id: number }): void {
-    for (const h of this.handlers) h('message', { subscription: this.sub, message: { chat_id: 7, is_from_me: false, is_group: false, sender: COLE, guid: `G${message.id}`, ...message } });
+    for (const h of this.handlers) h('message', { subscription: this.sub, message: { chat_id: 7, is_from_me: false, is_group: false, sender: OWNER, guid: `G${message.id}`, ...message } });
   }
   overflow(resumeAfter: number): void {
     for (const h of this.handlers) h('watch.overflow', { subscription: this.sub, resume_after_rowid: resumeAfter, reason: 'buffer_limit_exceeded' });
@@ -46,15 +46,15 @@ class FakeImsg implements ImsgTransport {
 
 describe('handles', () => {
   it('normalizes phone numbers and emails so the same person always matches', () => {
-    expect(normalizeHandle('+1 (512) 555-0100')).toBe(COLE);
-    expect(normalizeHandle('5125550100')).toBe(COLE);
-    expect(normalizeHandle('15125550100')).toBe(COLE);
-    expect(normalizeHandle(' Cole@Example.COM ')).toBe('cole@example.com');
+    expect(normalizeHandle('+1 (512) 555-0100')).toBe(OWNER);
+    expect(normalizeHandle('5125550100')).toBe(OWNER);
+    expect(normalizeHandle('15125550100')).toBe(OWNER);
+    expect(normalizeHandle(' Owner@Example.COM ')).toBe('owner@example.com');
     expect(matchAllowed('(512) 555-0100', ['local-cli', '+15125550100'])).toBe('+15125550100');
     expect(matchAllowed('+15125550199', ['local-cli', '+15125550100'])).toBeUndefined();
     expect(matchAllowed('local-cli', ['local-cli'])).toBeUndefined();
     expect(maskHandle('+1 512 555 0100')).toBe('…0100');
-    expect(maskHandle('cole@example.com')).toBe('…@example.com');
+    expect(maskHandle('owner@example.com')).toBe('…@example.com');
   });
 });
 
@@ -66,7 +66,7 @@ describe('iMessage listener', () => {
   afterEach(() => h?.cleanup());
 
   async function setup(env: Record<string, string> = {}, file = false): Promise<void> {
-    h = harness({ file, env: { HOMEPILOT_ALLOWED_SENDERS: `local-cli,${COLE}`, HOMEPILOT_DRY_RUN: 'false', ...env } });
+    h = harness({ file, env: { HOMEPILOT_ALLOWED_SENDERS: `local-cli,${OWNER}`, HOMEPILOT_DRY_RUN: 'false', ...env } });
     imsg = new FakeImsg();
     listener = new ImessageListener(h.app, imsg, { dryRun: h.config.dryRun, maxPerHour: h.config.imessage.maxPerHour, log: (l) => logs.push(l) });
     await listener.start();
@@ -170,14 +170,14 @@ describe('iMessage listener', () => {
 describe('iMessage channel (reminders and nudges)', () => {
   it('texts only the configured handle and returns the message guid', async () => {
     const imsg = new FakeImsg();
-    const ch = new ImessageChannel(imsg, COLE);
+    const ch = new ImessageChannel(imsg, OWNER);
     expect(await ch.deliver({ idempotencyKey: 'k', body: 'Reminder: x', actions: [] })).toEqual({ providerRef: 'imsg:GUID-OUT' });
-    expect(imsg.sends()[0]?.params).toEqual({ to: COLE, text: 'Reminder: x', service: 'imessage' });
+    expect(imsg.sends()[0]?.params).toEqual({ to: OWNER, text: 'Reminder: x', service: 'imessage' });
   });
 
   it('treats "may have completed" as sent so the outbox does not text you twice, and rethrows real failures', async () => {
     const imsg = new FakeImsg();
-    const ch = new ImessageChannel(imsg, COLE);
+    const ch = new ImessageChannel(imsg, OWNER);
     imsg.sendError = new ImsgRpcError('maybe', MAY_HAVE_COMPLETED);
     expect(await ch.deliver({ idempotencyKey: 'k', body: 'b', actions: [] })).toEqual({ providerRef: 'imsg:uncertain' });
     imsg.sendError = new ImsgRpcError('Messages not running', -32603);
@@ -186,7 +186,7 @@ describe('iMessage channel (reminders and nudges)', () => {
 
   it('a reminder that fires is texted to you through the outbox exactly once', async () => {
     const imsg = new FakeImsg();
-    const h = harness({ env: { HOMEPILOT_DRY_RUN: 'false' }, app: { channel: new ImessageChannel(imsg, COLE) } });
+    const h = harness({ env: { HOMEPILOT_DRY_RUN: 'false' }, app: { channel: new ImessageChannel(imsg, OWNER) } });
     try {
       await h.say('remind me to call the dentist tomorrow at 10am');
       h.clock.set('2026-11-17T16:00:00.000Z');
@@ -218,11 +218,11 @@ describe('imsg rpc client', () => {
     rpc.onNotification((method, params) => notes.push({ method, params }));
 
     const a = rpc.request('status');
-    const b = rpc.request('send', { to: COLE, text: 'hi' });
+    const b = rpc.request('send', { to: OWNER, text: 'hi' });
     await new Promise((r) => setImmediate(r));
     expect(written.map((l) => JSON.parse(l))).toEqual([
       { jsonrpc: '2.0', id: 1, method: 'status', params: {} },
-      { jsonrpc: '2.0', id: 2, method: 'send', params: { to: COLE, text: 'hi' } },
+      { jsonrpc: '2.0', id: 2, method: 'send', params: { to: OWNER, text: 'hi' } },
     ]);
     stdout.write(`${JSON.stringify({ jsonrpc: '2.0', id: 2, error: { code: -32001, message: 'may have completed' } })}\n`);
     stdout.write(`${JSON.stringify({ jsonrpc: '2.0', method: 'message', params: { subscription: 1, message: { id: 5 } } })}\n`);

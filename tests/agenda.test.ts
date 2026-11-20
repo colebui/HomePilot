@@ -7,7 +7,7 @@ afterEach(() => h?.cleanup());
 describe('the "tasks" reply', () => {
   it('groups by day, sorts by time and puts the time first', async () => {
     h = harness({ start: '2026-11-17T21:05:00.000Z' }); // Tue Nov 17, 3:05 PM CST
-    await h.say('need to eat lunch, go to gym around 430, therapy at 6pm, grab groceries from heb at 7pm');
+    await h.say('need to eat lunch, go to gym around 430, haircut at 6pm, grab groceries from heb at 7pm');
     await h.say('I need to pick up dry cleaning this week');
     await h.say('remind me to call the bank tomorrow at 9am');
     await h.say('remind me to pay rent at 3pm'); // 3 PM already passed today, so tomorrow 3 PM
@@ -16,7 +16,7 @@ describe('the "tasks" reply', () => {
       [
         'Today · Tue Nov 17',
         '4:30 PM · Go to gym',
-        '6:00 PM · Therapy',
+        '6:00 PM · Haircut',
         '7:00 PM · Grab groceries from heb',
         '',
         'Tomorrow · Wed Nov 18',
