@@ -15,7 +15,7 @@ import type { Channel } from './notify/notifier.js';
 import { exportLlmCalls, formatUsageReport } from './telemetry/report.js';
 import { formatLocal, parseWhen } from './time.js';
 
-const USAGE = `HomePilot (Phase 1 MVP)
+const USAGE = `HomePilot: tasks and reminders you can text
 
 Usage: homepilot <command> [args]
 

@@ -84,20 +84,21 @@ after `homepilot resume`.
 
 ## Known gaps, stated plainly
 
-1. **The policy layer is not a sandbox against the OpenClaw agent.** If that agent has an
-   unrestricted shell tool, it can run any `homepilot` command, including without
-   `--channel openclaw`, and could therefore approve an action. The skill's instructions forbid
-   this, but instructions to a model are not enforcement. Before the skill is installed, one of
-   these needs to be true: the agent's shell is restricted to the single allowed command; or
-   HomePilot's approvals move to a channel the agent cannot reach (for example the dashboard
-   with its token held only by you). This is the main open security decision for Phase 2.
-2. **Sender identity is only as good as the channel.** For iMessage, HomePilot will trust the
-   handle OpenClaw reports. How reliably OpenClaw authenticates senders is unverified.
+1. **The policy layer is not a sandbox against local code.** Anything running as the same macOS
+   user, such as an AI agent with an unrestricted shell, can run any `homepilot` command and so
+   could approve an action. This is why the OpenClaw skill is not installed. If it ever is, the
+   agent's shell must first be restricted to the one allowed command, or approvals must move to a
+   channel the agent cannot reach (for example the dashboard, with its token held only by you).
+2. **Sender identity is only as good as the channel.** For iMessage, HomePilot trusts the
+   sender handle that Messages records. Anyone who can send from an allowlisted phone number or
+   Apple ID can command HomePilot.
 3. **No encryption at rest** beyond what the Mac provides (FileVault). The database holds task
    titles and notification text.
 4. **The dashboard token is a single shared secret.** Fine for one person on one machine; not a
    multi-user design.
-5. **Keychain and launchd paths are unverified on macOS.**
+5. **Messages' database is read with Full Disk Access.** That grant is wide: it covers the
+   whole `node` binary, not just HomePilot. Keep the Mac's user account dedicated to this.
+6. **The Keychain path is unverified on macOS.**
 
 ## What HomePilot will not do
 

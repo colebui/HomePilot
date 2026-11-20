@@ -96,7 +96,7 @@ export function parseCommand(text: string, now: Date, zone: string): Command | u
   const single = parseSingle(text, now, zone);
   if (single && single.type !== 'add_task' && single.type !== 'add_tasks') return single;
 
-  // "gym done, therapy done, going to pick up groceries now": updates that do not start with a
+  // "gym done, haircut done, going to pick up groceries now": updates that do not start with a
   // command word. Split on every separator and keep the result only if it contains at least one
   // update to an existing task, so a plain list ("eggs, milk and bread") is never broken up.
   const loose = text
@@ -167,7 +167,7 @@ function parseSingle(text: string, now: Date, zone: string): Command | undefined
     return { type: 'done', ref: cleanRef(m[1] ?? '') };
   }
   if ((m = /^mark\s+(.*?)\s+(?:as\s+)?(?:done|complete|completed)$/i.exec(t))) return { type: 'done', ref: cleanRef(m[1]!) };
-  // "gym done", "therapy is done", "finished the laundry" handled above; this is the word-last form.
+  // "gym done", "haircut is done", "finished the laundry" handled above; this is the word-last form.
   if ((m = /^(?:the\s+|my\s+)?(.+?)\s+(?:is\s+|are\s+|was\s+)?(?:done|finished|complete|completed|taken care of)$/i.exec(t)) && !/^(?:i|i'?m|i am)$/i.test(m[1]!.trim())) {
     return { type: 'done', ref: cleanRef(m[1]!) };
   }
@@ -181,7 +181,7 @@ function parseSingle(text: string, now: Date, zone: string): Command | undefined
     return title ? { title, remind, ...(when ? { when } : {}) } : undefined;
   };
   const add = (body: string, remind: boolean): Command | undefined => {
-    // Several things in one text ("eat lunch, gym around 430, therapy at 6pm"): one task each.
+    // Several things in one text ("eat lunch, gym around 430, haircut at 6pm"): one task each.
     const parts = body.split(/\s*(?:[,;]|\band then\b|\bthen\b)\s*(?:and\s+)?/i).filter((p) => p.trim());
     if (parts.length >= 2) {
       const items = parts.map((p) => one(p, remind));

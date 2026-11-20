@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
   HomePilot scheduler as a per-user LaunchAgent. TEMPLATE: not installed by anything in this repo.
-  NOT YET VERIFIED on the Mac mini. See docs/operations.md for install and uninstall steps.
+  In use on the Mac mini since 2026-11-17. See docs/operations.md for install and uninstall steps.
 
   Replace before use:
     __NODE__     absolute path to node 22+        (run: which node)

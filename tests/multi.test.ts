@@ -9,9 +9,9 @@ const parse = (text: string) => parseCommand(text, at(NOW), TZ);
 let h: Harness | undefined;
 afterEach(() => h?.cleanup());
 
-async function cole(): Promise<Harness> {
+async function seeded(): Promise<Harness> {
   const hh = harness({ start: '2026-11-17T21:05:00.000Z' });
-  await hh.say('need to eat lunch, go to gym around 430, therapy at 6pm, grab groceries from heb at 7pm');
+  await hh.say('need to eat lunch, go to gym around 430, haircut at 6pm, grab groceries from heb at 7pm');
   hh.clock.advanceMinutes(113); // 6:58 PM
   return hh;
 }
@@ -19,7 +19,7 @@ async function cole(): Promise<Harness> {
 describe('several requests in one text: parsing', () => {
   it('reads "X done" with the word at the end', () => {
     expect(parse('gym done')).toEqual({ type: 'done', ref: 'gym' });
-    expect(parse('therapy is done')).toEqual({ type: 'done', ref: 'therapy' });
+    expect(parse('haircut is done')).toEqual({ type: 'done', ref: 'haircut' });
     expect(parse('the laundry is finished')).toEqual({ type: 'done', ref: 'laundry' });
     expect(parse("I'm done")).toEqual({ type: 'done', ref: null });
   });
@@ -30,11 +30,11 @@ describe('several requests in one text: parsing', () => {
   });
 
   it('splits updates and new requests', () => {
-    expect(parse('gym done, therapy done, going to pickup groceries now')).toEqual({
+    expect(parse('gym done, haircut done, going to pickup groceries now')).toEqual({
       type: 'multi',
       commands: [
         { type: 'done', ref: 'gym' },
-        { type: 'done', ref: 'therapy' },
+        { type: 'done', ref: 'haircut' },
         { type: 'started', ref: 'pickup groceries' },
       ],
     });
@@ -43,9 +43,9 @@ describe('several requests in one text: parsing', () => {
       commands: [{ type: 'done', ref: 'gym' }, { type: 'add_task', title: 'Call mom', remind: true }],
     });
     expect(parse('done with gym. tasks?')).toMatchObject({ type: 'multi', commands: [{ type: 'done' }, { type: 'list' }] });
-    expect(parse('snooze therapy 2h, add laundry to my list. tasks')).toMatchObject({
+    expect(parse('snooze haircut 2h, add laundry to my list. tasks')).toMatchObject({
       type: 'multi',
-      commands: [{ type: 'snooze', ref: 'therapy' }, { type: 'add_task', title: 'Laundry' }, { type: 'list' }],
+      commands: [{ type: 'snooze', ref: 'haircut' }, { type: 'add_task', title: 'Laundry' }, { type: 'list' }],
     });
   });
 
@@ -61,30 +61,30 @@ describe('several requests in one text: parsing', () => {
 });
 
 describe('several requests in one text: what happens', () => {
-  it("handles Cole's text from Nov 17", async () => {
-    h = await cole();
-    const reply = await h.say('gym done, therapy done, going to pickup groceries now');
+  it("handles a three-part update in one text", async () => {
+    h = await seeded();
+    const reply = await h.say('gym done, haircut done, going to pickup groceries now');
     expect(reply).toBe(
       [
         'Marked "Go to gym" done. Its reminders are cancelled.',
-        'Marked "Therapy" done. Its reminders are cancelled.',
+        'Marked "Haircut" done. Its reminders are cancelled.',
         `Got it, you're on "Grab groceries from heb", so no more reminders for it. Text "done" when you finish.`,
       ].join('\n'),
     );
     const open = h.app.tasks.list({ states: ['open', 'snoozed'] }).map((t) => t.title);
     expect(open).toEqual(expect.arrayContaining(['Eat lunch', 'Grab groceries from heb']));
     expect(open).not.toContain('Go to gym');
-    expect(open).not.toContain('Therapy');
+    expect(open).not.toContain('Haircut');
     expect(h.provider.calls).toHaveLength(0);
   });
 
   it('completes several tasks named together', async () => {
-    h = await cole();
-    expect(await h.say('done with gym and therapy')).toBe('Marked "Go to gym" and "Therapy" done. Their reminders are cancelled.');
+    h = await seeded();
+    expect(await h.say('done with gym and haircut')).toBe('Marked "Go to gym" and "Haircut" done. Their reminders are cancelled.');
   });
 
   it('runs what it understood when the model cannot read the rest', async () => {
-    h = await cole();
+    h = await seeded();
     const reply = await h.say('gym done, the weather is nice');
     expect(reply).toMatch(/^Marked "Go to gym" done\. Its reminders are cancelled\.\nI didn't understand "the weather is nice", so I left that alone\./);
   });

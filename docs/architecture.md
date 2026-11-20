@@ -1,19 +1,19 @@
 # Architecture
 
-Status: Phase 1. Built and tested in a Linux sandbox. Not yet run on the Mac mini.
+Status: running on a Mac mini since 2026-11-17 (iMessage, OpenRouter, launchd). Calendar,
+shopping and bookings are still mocked or not written; see the README status table.
 
 ## Shape
 
 ```
-                 you (iMessage, later)            you (terminal / browser)
+              you (iMessage on your phone)         you (terminal / browser)
                         |                                  |
               +---------v----------+                       |
-              |  OpenClaw gateway  |  untouched            |
-              |  (existing setup)  |                       |
+              | Messages on the Mac|  separate Apple ID    |
+              |  + `imsg rpc`      |                       |
               +---------+----------+                       |
-                        | skill: `homepilot say --stdin    |
-                        |         --channel openclaw`      |
-                        | (prepared, NOT installed)        |
+                        | ImessageListener: allowlist,     |
+                        | 1:1 chats, at-most-once          |
         +---------------v----------------------------------v-----------+
         |                         HomePilot                            |
         |                                                              |
@@ -33,7 +33,7 @@ Status: Phase 1. Built and tested in a Linux sandbox. Not yet run on the Mac min
         |     outbox  <---------------+
         |        |
         |        v
-        |   channel: dry-run (records only)        iMessage channel: Phase 2
+        |   channel: dry-run (records only), or iMessage via imsg      |
         |                                                              |
         |   SQLite file (WAL)   audit events   loopback API + dashboard |
         +--------------------------------------------------------------+
@@ -44,8 +44,10 @@ One process, one SQLite file, no network listener except the optional dashboard 
 ## Decisions
 
 **HomePilot is a separate repository and process, beside OpenClaw.** Nothing is written under
-`~/.openclaw`. The only planned contact point is a skill directory that calls HomePilot's CLI.
-Removing HomePilot leaves OpenClaw exactly as it was.
+`~/.openclaw`. HomePilot reads and sends texts itself through `imsg`, so no AI agent sits between
+your phone and the code that acts on your texts. Removing HomePilot leaves OpenClaw exactly as it
+was. (A skill that would let OpenClaw call HomePilot is kept in `src/integrations/openclaw/` but
+is not used.)
 
 **SQLite through Node's built-in `node:sqlite`.** No native add-on to compile, so `npm install`
 cannot fail on a toolchain problem. It is wrapped in one class (`src/db/database.ts`) so the
@@ -53,9 +55,7 @@ driver can be swapped. Node still labels the module experimental; that is a know
 
 **HomePilot owns its scheduler rather than using OpenClaw automations.** According to OpenClaw's
 docs, an automation "wakes the agent", which is a model turn. A reminder that fires at 9:00
-should cost nothing and should not depend on a model being reachable. This is a docs-level
-finding and should be re-checked during the audit; if OpenClaw can run a plain command on a
-schedule without a model turn, an adapter is a small addition.
+should cost nothing and should not depend on a model being reachable.
 
 **Deterministic code first, models last.** Dates, recurrence, quiet hours, cooldowns, scoring,
 dedupe, retries, budgets and policy are ordinary code. A model is used only when the command
@@ -81,8 +81,10 @@ the kill switch. See [security-model.md](security-model.md).
   to be idempotent.
 - **Notifications are exactly-once into the outbox** (unique key), and **at-least-once at the
   channel**. Each delivery carries an idempotency key so a channel can drop repeats. The dry-run
-  channel does. Whether the real iMessage path can is unverified and is a Phase 2 question; the
-  worst case is a rare duplicate text after a crash at exactly the wrong moment.
+  channel does. iMessage cannot, so the worst case there is a rare duplicate text after a crash
+  at exactly the wrong moment. When imsg reports that a send "may have completed", HomePilot
+  counts it as sent rather than risk a duplicate.
+- **Incoming texts are at-most-once.** Each text's id is recorded before HomePilot acts on it.
 - **Failed jobs** back off exponentially and stop after a bounded number of attempts, ending in
   a `dead` state that shows up in `homepilot health`.
 - **Tool executions are idempotent by key.** Repeating a request with the same key returns the
@@ -90,9 +92,10 @@ the kill switch. See [security-model.md](security-model.md).
 
 ## Data
 
-One migration (`src/db/migrations.ts`) creates: `tasks`, `reminders`, `preferences`, `events`
+Migrations (`src/db/migrations.ts`) create: `tasks`, `reminders`, `preferences`, `events`
 (append-only audit), `approvals`, `tool_executions`, `jobs`, `job_runs`, `notifications`,
-`llm_calls`, `workflow_runs`, `other_costs`, `model_prices`, `system_state`.
+`llm_calls`, `workflow_runs`, `other_costs`, `model_prices`, `system_state`, and
+`imessage_inbound` (message ids and masked senders only, never the text).
 
 Prompts and model responses are **not** stored. `llm_calls` keeps counts, cost, timing, model
 and feature only. The audit log redacts values that look like secrets.
@@ -101,13 +104,13 @@ and feature only. The audit log redacts values that look like secrets.
 
 | # | Risk or assumption | Consequence | Mitigation |
 | --- | --- | --- | --- |
-| 1 | The Mac mini and OpenClaw were not inspected. Version, config, channels and agent permissions are unknown | Any integration detail may be wrong | Run `scripts/audit-openclaw.sh`; integrate only after reading the result |
-| 2 | OpenClaw facts come from its public docs (2026-11-16), not from the installed version | Commands may differ | Every such fact is labelled unverified in [integration-matrix.md](integration-matrix.md) |
+| 1 | iMessage depends on `imsg` and on Messages' local database, neither of which is a stable Apple API | A macOS or imsg update could break texts | `homepilot run` exits when imsg dies so launchd restarts it; `homepilot health` and `imessage status` show the problem |
+| 2 | OpenClaw facts come from its public docs (2026-11-16), not from the installed version | Matters only if the unused skill is ever installed | Every such fact is labelled unverified in [integration-matrix.md](integration-matrix.md) |
 | 3 | `node:sqlite` is still marked experimental by Node | An API change in a future Node release | `package.json` requires Node 22.13+; test before moving to a new major; one wrapper class to change |
-| 4 | Keychain lookup and the launchd template were never run on macOS | First run on the Mac may need a fix | Small, isolated, and documented in [operations.md](operations.md) |
-| 5 | The OpenRouter adapter was tested against a fake server only | A response field may differ in practice | First live call should be made with a low credit limit on the key; malformed output is already handled |
+| 4 | Keychain lookup has not been run on macOS (the Mac uses `.env`) | First use may need a fix | Small and isolated in `src/secrets.ts` |
+| 5 | Model output can be malformed or wrong | A text is misread | Output is schema-checked, retried within caps, and can only classify; the reply says which model read it |
 | 6 | Seeded model prices and Claude list prices are dated snapshots | Estimates drift | `homepilot models sync`; every report prints the price date |
-| 7 | iMessage duplicate suppression at the channel is unverified | Rare duplicate text after a crash | Idempotency key is already passed; decide in Phase 2 |
-| 8 | If the OpenClaw agent has an unrestricted shell, HomePilot's policy layer is not a wall against that agent | The agent could call the CLI in ways the skill forbids | See "Known gaps" in [security-model.md](security-model.md); settle before the skill is installed |
+| 7 | iMessage has no duplicate suppression at the channel | Rare duplicate text after a crash | Outbox dedupe inside HomePilot; uncertain sends count as sent |
+| 8 | Any local process running as the same user (including an AI agent with a shell) can run the `homepilot` CLI | The policy layer is not a sandbox against local code | See "Known gaps" in [security-model.md](security-model.md) |
 | 9 | Default time zone is America/Chicago | Wrong times if that is not yours | Set `HOMEPILOT_TIMEZONE` |
 | 10 | Single process, single machine | No reminders while the Mac is off or asleep | Overdue jobs run on wake; a "missed while offline" summary is a later item |

@@ -159,10 +159,10 @@ describe('several tasks in one text', () => {
   const tue = (text: string) => parseCommand(text, at('2026-11-17T21:05:00.000Z'), TZ); // Tue 3:05 PM CST
 
   it('splits a list with its own times into one task each', () => {
-    const c = tue('need to eat lunch, go to gym around 430, therapy at 6pm, grab groceries from heb at 7pm');
+    const c = tue('need to eat lunch, go to gym around 430, haircut at 6pm, grab groceries from heb at 7pm');
     expect(c).toMatchObject({ type: 'add_tasks' });
     if (c?.type !== 'add_tasks') throw new Error('expected add_tasks');
-    expect(c.items.map((i) => i.title)).toEqual(['Eat lunch', 'Go to gym', 'Therapy', 'Grab groceries from heb']);
+    expect(c.items.map((i) => i.title)).toEqual(['Eat lunch', 'Go to gym', 'Haircut', 'Grab groceries from heb']);
     expect(c.items[0]!.when).toBeUndefined();
     expect(c.items.slice(1).map((i) => i.when?.at.toISOString())).toEqual([
       '2026-11-17T22:30:00.000Z',
@@ -199,7 +199,7 @@ describe('several tasks: model output and the reply', () => {
   it('saves each task with its own reminder and points out a similar open task', async () => {
     hh = harness({ start: '2026-11-17T21:05:00.000Z' });
     await hh.say('add sometime to go to gym to my tasks');
-    const reply = await hh.say('need to eat lunch, go to gym around 430, therapy at 6pm, grab groceries from heb at 7pm');
+    const reply = await hh.say('need to eat lunch, go to gym around 430, haircut at 6pm, grab groceries from heb at 7pm');
     expect(reply).toMatch(/^Saved 4 tasks:/);
     expect(reply).toMatch(/2\. Go to gym\. I'll remind you Tue Nov 17, 4:30 PM CST\. \(You also have "Go to gym"\.\)/);
     expect(reply).toMatch(/4\. Grab groceries from heb\. I'll remind you Tue Nov 17, 7:00 PM CST\./);

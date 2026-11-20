@@ -702,7 +702,7 @@ export class App {
       case 'done': {
         const r = this.resolveTask(cmd.ref);
         if ('problem' in r) {
-          // "gym and therapy done": several tasks named at once. Complete them all only when
+          // "gym and haircut done": several tasks named at once. Complete them all only when
           // every name points to exactly one task; otherwise ask, as before.
           const names = cmd.ref?.split(/\s*(?:,|&|\band\b|\bplus\b)\s*/i).filter((n) => n.trim()) ?? [];
           if (names.length >= 2) {

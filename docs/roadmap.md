@@ -19,28 +19,29 @@ execution, with no paid key. Met by `tests/acceptance.test.ts`; shown by `npm ru
 | Task and reminder CRUD, status changes, snooze | Done |
 | Durable scheduler, restart recovery, fake-clock tests | Done |
 | Policy and approval framework, dry-run tool execution | Done |
-| OpenRouter adapter and mock provider | Done (never called live) |
+| OpenRouter adapter and mock provider | Done (live since 2026-11-17) |
 | Per-call telemetry, budget, Claude-only baseline | Done |
 | One working command path | Done: CLI and loopback API. OpenClaw skill is drafted, not installed |
 | End-to-end dry-run flow | Done |
 | Usage and health reporting | Done: CLI and dashboard |
-| Tests and README | Done: 130 tests |
+| Tests and README | Done (166 tests now) |
 
-Left over from Phase 1, all needing the Mac: verify Keychain lookup and the launchd template.
-The first live OpenRouter calls ran on 2026-11-17.
+Left over from Phase 1: verify the Keychain lookup on the Mac. The launchd service and live
+OpenRouter calls have run there since 2026-11-17.
 
 ## Phase 2: iMessage and Google Calendar. **iMessage working, calendar not started**
 
 1. Done: Phase 0.
 2. Done and verified on the Mac (2026-11-17): HomePilot reads your texts and replies through
-   `imsg`, and texts reminders and nudges to you. Next: run it as the launchd service. See
+   `imsg`, texts reminders and nudges, and runs as a launchd service that also serves the
+   dashboard. Texts from the first days drove parser fixes: several tasks or requests in one text,
+   times like "around 430", "X done" and "going to X now". See
    [operations.md](operations.md#imessage-setup).
 3. Google Calendar read-only: OAuth desktop flow, tokens in Keychain, real adapter behind the
    existing `CalendarProvider` interface. Write scope only after you ask for it.
 4. Daily briefing and calendar-aware nudges on real data.
 
-Needs from you: a separate Apple ID for Messages on the Mac, the handle to allowlist, a Google
-OAuth client, and a yes before anything is installed or sent.
+Still needed for the calendar: a Google OAuth client, and a yes before anything is installed.
 
 ## Phase 3: shopping and monitored deals. **Not started**
 
@@ -64,5 +65,8 @@ success, speed, quality), optional semantic memory, a fuller dashboard.
 - Recurring tasks (the schema allows for it; no rule engine yet).
 - "Missed while offline" summary after the Mac wakes.
 - Log rotation for the launchd service.
+- Viewing the dashboard from a phone (for example over Tailscale) without exposing the port.
+- A cheap model that rates how hard a request is and routes it to the fast, balanced or premium
+  tier, compared against a fixed model on real traffic.
 - A dashboard view for approving requests with a button rather than typing the code.
 - Move the OpenRouter adapter to streaming if long outputs are ever needed.
