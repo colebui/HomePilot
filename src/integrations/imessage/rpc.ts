@@ -4,7 +4,7 @@ import { createInterface } from 'node:readline';
 /**
  * Client for `imsg rpc`: JSON-RPC 2.0, one JSON object per line over the child's stdin/stdout.
  * Interface taken from the imsg docs (github.com/openclaw/imsg, docs/rpc.md) on 2026-11-17.
- * NOT YET RUN against a real imsg install.
+ * Running against a real imsg install since 2026-11-17; the tests use a fake transport.
  */
 export interface ImsgTransport {
   request<T = unknown>(method: string, params?: Record<string, unknown>): Promise<T>;

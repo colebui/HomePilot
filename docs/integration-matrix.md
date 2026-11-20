@@ -23,7 +23,7 @@ Rows below that say "docs only" or "No" were not checked on the machine.
 | Scheduling | **Build** | OpenClaw automations wake the agent (a model turn) per its docs. Reminders must fire with no model and no cost | Build: yes. The OpenClaw claim: no |
 | Nudge decisions | **Build** | Deterministic rules that can be tested and explained | Yes (tests) |
 | Policy, approvals, kill switch | **Build** | Must not depend on any model, including OpenClaw's agent | Yes (tests) |
-| Model routing and cost tracking | **Build** | HomePilot needs per-feature cost and a budget ceiling for its own calls. OpenClaw's model settings stay as they are | Yes with mocks. Live: no |
+| Model routing and cost tracking | **Build** | HomePilot needs per-feature cost and a budget ceiling for its own calls. OpenClaw's model settings stay as they are | Yes, live through OpenRouter (2026-11-17) |
 | Google Calendar | **Build, later** | Read-only OAuth first. If the audit shows OpenClaw already has a calendar plugin with suitable access, reuse it instead | Not implemented |
 | Web browsing for research | **Decide after audit** | Reuse OpenClaw's browser tooling if present; treat every page as untrusted | Not implemented |
 
@@ -32,14 +32,14 @@ Rows below that say "docs only" or "No" were not checked on the machine.
 | Integration | State | What exists | What is missing |
 | --- | --- | --- | --- |
 | OpenClaw skill | Prepared, not installed, not planned | `SKILL.md` that pipes the user's words to `homepilot say --stdin --channel openclaw` | Not needed: HomePilot handles iMessage directly |
-| iMessage outbound (reminders, nudges) | Working on the Mac | `ImessageChannel` sends through `imsg rpc` to one configured handle | Run as the launchd service |
-| iMessage inbound | Working on the Mac | `ImessageListener`: allowlist, one-to-one chats only, at-most-once, resume cursor, hourly cap | Run as the launchd service |
+| iMessage outbound (reminders, nudges) | Working on the Mac | `ImessageChannel` sends through `imsg rpc` to one configured handle | Nothing |
+| iMessage inbound | Working on the Mac | `ImessageListener`: allowlist, one-to-one chats only, at-most-once, resume cursor, hourly cap | Nothing |
 | OpenRouter | Working: first live calls 2026-11-17 | Adapter, router, fallbacks, cost capture, price sync | Nothing for the fast tier |
 | Google Calendar | Mock only | Provider interface, conflict and free-time maths | OAuth flow, token storage in Keychain, real adapter |
 | H-E-B, Amazon | Not implemented | Mock cart and order tools for the approval flow | Everything. No official consumer ordering API is assumed |
 | Facebook Marketplace | Not implemented | Nothing | A compliant approach; no scraping is assumed |
 | Travel, bookings | Not implemented | Nothing | Phase 4 |
-| launchd | Template only | `scripts/launchd/*.plist.template` | Install and verify on the Mac |
+| launchd | Running on the Mac | `scripts/launchd/*.plist.template`, install steps in operations.md | Log rotation |
 | macOS Keychain | Written, unverified | `src/secrets.ts` | First run on the Mac |
 
 ## OpenClaw facts relied on (all unverified against your install)
@@ -53,7 +53,7 @@ Rows below that say "docs only" or "No" were not checked on the machine.
   needs any change to System Integrity Protection is unknown.** HomePilot will not ask for SIP
   to be changed, and nothing in Phase 1 or the Phase 2 plan requires it.
 
-## Questions the audit must answer before any integration
+## Questions the audit was written to answer
 
 1. Which OpenClaw version is installed, and is the gateway healthy?
 2. Is the iMessage channel working today, and with which handle?

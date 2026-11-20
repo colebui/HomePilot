@@ -1,7 +1,7 @@
 {
   "name": "homepilot",
   "version": "0.1.0",
-  "description": "HomePilot: local-first personal assistant core (tasks, reminders, nudges, policy, model telemetry). Phase 1 MVP.",
+  "description": "Local-first personal assistant you text: tasks, reminders, nudges, a policy layer for outside actions, and model cost tracking.",
   "private": true,
   "type": "module",
   "license": "UNLICENSED",

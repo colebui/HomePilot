@@ -1,7 +1,8 @@
 # Operations
 
-Everything here that mentions macOS is **written but not yet verified on the Mac mini**. Read
-each command before running it.
+The iMessage, launchd and dashboard steps below have been run on a Mac mini (macOS, Homebrew
+Node). The Keychain steps have not; `.env` is what the Mac uses today. Read each command before
+running it.
 
 ## Install
 
@@ -19,19 +20,25 @@ npm run build
 ./bin/homepilot health
 ```
 
-## Step 0 on the Mac: the read-only audit
+## Optional: the read-only host audit
 
 ```bash
 bash scripts/audit-openclaw.sh
 ```
 
-It prints tool versions, asks OpenClaw for its status, and lists file names in `~/.openclaw`. It
-changes nothing, opens no config or credential file, and writes one report to
-`data/openclaw-audit-<date>.md` (git-ignored). Read the report before sharing it.
+Useful if the Mac also runs OpenClaw. It prints tool versions, asks OpenClaw for its status, and
+lists file names in `~/.openclaw`. It changes nothing, opens no config or credential file, and
+writes one report to `data/openclaw-audit-<date>.md` (git-ignored). Read the report before
+sharing it.
 
 ## Secrets
 
-Preferred, on macOS (the command prompts for the value):
+The simplest option, and the one in use on the Mac: put the values in `.env` and run
+`chmod 600 .env`. A launchd service cannot answer a Keychain prompt, so the running service
+reads only `.env`.
+
+For interactive use, the Keychain also works (written, not yet verified; the command prompts for
+the value):
 
 ```bash
 security add-generic-password -U -s homepilot -a OPENROUTER_API_KEY -w
@@ -39,11 +46,6 @@ security add-generic-password -U -s homepilot -a HOMEPILOT_API_TOKEN -w
 ```
 
 Remove one: `security delete-generic-password -s homepilot -a OPENROUTER_API_KEY`
-
-Alternative: put the value in `.env` and run `chmod 600 .env`.
-
-A background service started by launchd may be asked by macOS to confirm Keychain access the
-first time. If that prompt cannot be answered (headless Mac), use `.env` for the service.
 
 ## Running the scheduler
 
@@ -199,11 +201,13 @@ Migrations only move forward. To go back, restore the backup taken before upgrad
 
 ## Going from dry-run to live
 
-1. Keep `HOMEPILOT_DRY_RUN=true`. Add the OpenRouter key and set
-   `HOMEPILOT_MODEL_PROVIDER=openrouter`. Model calls become real; everything else stays mocked.
+1. Keep `HOMEPILOT_DRY_RUN=true`. Add the OpenRouter key (with a credit limit set on it at
+   openrouter.ai) and set `HOMEPILOT_MODEL_PROVIDER=openrouter`. Model calls become real.
 2. Send a message the parser does not know and check `./bin/homepilot usage`.
-3. Only after a real notification channel exists (Phase 2) does `HOMEPILOT_DRY_RUN=false` do
-   anything useful. Today no live channel is implemented, so leave it on.
+3. Set up iMessage and run the listen-only test ([iMessage setup](#imessage-setup), step 6).
+4. Set `HOMEPILOT_DRY_RUN=false` and run `imessage send-test`. Reminders and replies are now
+   texted. Calendar, shopping and outside-message tools stay simulated whatever this says.
+5. Install the launchd service (above) so it survives logouts and reboots.
 
 ## Uninstall, leaving OpenClaw untouched
 

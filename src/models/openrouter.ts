@@ -53,8 +53,7 @@ function categorize(status: number): { category: ProviderError['category']; retr
  *
  * Verified against OpenRouter's public docs on 2026-11-16 (usage accounting page): responses
  * include `usage.cost` (amount charged, USD) and `usage.prompt_tokens_details.cached_tokens`
- * without any extra request parameter. NOT yet exercised against the live API from this repo:
- * no key was available when it was written, so the tests use a fake fetch.
+ * without any extra request parameter. In live use since 2026-11-17; the tests use a fake fetch.
  *
  * The API key is only ever placed in the Authorization header. It is never logged or stored.
  */
