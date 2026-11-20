@@ -241,3 +241,8 @@ All tests are offline and use a fake clock; CI runs the same command on every pu
 request. The end-to-end acceptance test is `tests/acceptance.test.ts`: a task is saved to a file
 database, the database is closed and reopened, the reminder fires exactly once at its due time,
 the outcome is recorded, and the run is logged as deterministic (no model used).
+
+## License
+
+Copyright (c) 2026 Cole Bui. All rights reserved. The code is public so it can be read and
+evaluated; no license is granted to copy, modify or redistribute it.
