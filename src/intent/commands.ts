@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { DateTime } from 'luxon';
+import { categorize, type Category } from '../domain/expenses.js';
 import { parseWhen, type ParsedWhen } from '../time.js';
 
 export type Command =
@@ -19,6 +21,11 @@ export type Command =
   | { type: 'resume' }
   | { type: 'status' }
   | { type: 'usage' }
+  /** "spent $23 at H-E-B": a personal expense. */
+  | { type: 'expense'; amountUsd: number; merchant: string | null; note: string | null; category: Category; spentAt?: Date }
+  | { type: 'expense_undo' }
+  /** "spending", "how much did I spend this month" */
+  | { type: 'spending' }
   | { type: 'help' };
 
 const PRONOUN = /^(that|it|this|that one|this one|the last one|the task)?$/i;
@@ -66,7 +73,7 @@ const ALONE = new Set<Command['type']>(['approve', 'deny', 'resume', 'pause']);
  * a comma, a full stop or a new line), at a word that opens a command. Splitting only there
  * keeps "buy eggs, milk and bread" or "call mom and dad" in one piece.
  */
-const OPENER = String.raw`(?:remind me|remember to|i'?m done|i am done|done|finished|completed?|mark|snooze|dismiss|don'?t remind|do not remind|stop reminding|add|put|i need|need to|i have to|have to|i gotta|gotta|i should|i want to|todo|to-do|new task|what(?:'s| is| are)? on my|what (?:reminders|tasks|to-?dos?)|show (?:me )?my|list my|my (?:tasks|reminders))\b|(?:tasks|reminders|to-?dos?)\??\s*$`;
+const OPENER = String.raw`(?:remind me|spent|paid|remember to|i'?m done|i am done|done|finished|completed?|mark|snooze|dismiss|don'?t remind|do not remind|stop reminding|add|put|i need|need to|i have to|have to|i gotta|gotta|i should|i want to|todo|to-do|new task|what(?:'s| is| are)? on my|what (?:reminders|tasks|to-?dos?)|show (?:me )?my|list my|my (?:tasks|reminders))\b|(?:tasks|reminders|to-?dos?)\??\s*$`;
 const SPLIT = new RegExp(
   String.raw`(?:\s*[\n;.!?]+\s*|\s*,\s*(?:and\s+|also\s+|then\s+|and then\s+|plus\s+)?|\s+(?:and also|and then|and|also|then|plus)\s+)(?=${OPENER})`,
   'i',
@@ -116,6 +123,62 @@ export function parseCommand(text: string, now: Date, zone: string): Command | u
   return single;
 }
 
+const AMOUNT = String.raw`\$\s?(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)|(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)\s*(?:dollars|bucks|usd)\b|(\d{1,6}\.\d{2})\b`;
+
+/**
+ * "spent $23 at H-E-B", "paid 60 for gas yesterday", "$12.50 lunch at Chipotle",
+ * "bought groceries for $45 at Costco". Needs a verb or a $ sign up front, so a task such as
+ * "I need to pay $60 for gas" is never logged as money already spent.
+ */
+export function parseExpense(text: string, now: Date, zone: string): Extract<Command, { type: 'expense' }> | undefined {
+  const t = text.trim().replace(/\s+/g, ' ').replace(/[.!]+$/, '');
+  let amountRaw: string | undefined;
+  let rest = '';
+  let m: RegExpExecArray | null;
+  if ((m = new RegExp(String.raw`^(?:i\s+)?(?:just\s+)?(?:spent|paid|dropped|blew)\s+(?:${AMOUNT})\s*(.*)$`, 'i').exec(t))) {
+    amountRaw = m[1] ?? m[2] ?? m[3];
+    rest = m[4] ?? '';
+  } else if ((m = new RegExp(String.raw`^\$\s?(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)\s+(.+)$`, 'i').exec(t))) {
+    amountRaw = m[1];
+    rest = m[2] ?? '';
+  } else if ((m = new RegExp(String.raw`^(?:i\s+)?(?:just\s+)?(?:bought|got|grabbed)\s+(.+?)\s+for\s+(?:${AMOUNT})\s*(.*)$`, 'i').exec(t))) {
+    amountRaw = m[2] ?? m[3] ?? m[4];
+    rest = `for ${m[1]} ${m[5] ?? ''}`;
+  }
+  if (!amountRaw) return undefined;
+  const amountUsd = Number(amountRaw.replace(/,/g, ''));
+  if (!(amountUsd > 0) || amountUsd >= 1_000_000) return undefined;
+
+  // When: today unless the text says otherwise.
+  let spentAt: Date | undefined;
+  const local = DateTime.fromJSDate(now, { zone });
+  const day = /\b(yesterday|last night|this morning|today)\b/i.exec(rest);
+  if (day) {
+    const w = day[1]!.toLowerCase();
+    if (w === 'yesterday') spentAt = local.minus({ days: 1 }).set({ hour: 12, minute: 0, second: 0, millisecond: 0 }).toJSDate();
+    else if (w === 'last night') spentAt = local.minus({ days: 1 }).set({ hour: 20, minute: 0, second: 0, millisecond: 0 }).toJSDate();
+    rest = rest.replace(day[0], ' ');
+  }
+
+  rest = ` ${rest} `.replace(/\s+/g, ' ');
+  const at = /\s(?:at|from|@)\s+(.+?)(?=\s(?:on|for)\s|\s*$)/i.exec(rest);
+  const merchant = at ? at[1]!.replace(/[\s,.;:-]+$/, '').trim() : null;
+  if (at) rest = rest.replace(at[0], ' ');
+  const what = /\s(?:on|for)\s+(.+?)\s*$/i.exec(rest);
+  let note = (what ? what[1]! : rest).replace(/^\s*(?:some|a|an|the)\s+/i, '').replace(/[\s,.;:-]+$/, '').trim();
+  if (!what) note = note.replace(/^(?:on|for)\s+/i, '');
+  const cleanMerchant = merchant && merchant.length <= 60 ? merchant : null;
+  const cleanNote = note && note.length <= 120 ? note : null;
+  return {
+    type: 'expense',
+    amountUsd: Math.round(amountUsd * 100) / 100,
+    merchant: cleanMerchant,
+    note: cleanNote,
+    category: categorize(cleanMerchant, cleanNote),
+    ...(spentAt ? { spentAt } : {}),
+  };
+}
+
 function parseSingle(text: string, now: Date, zone: string): Command | undefined {
   const raw = text.trim().replace(/\s+/g, ' ');
   const t = raw.replace(/[.!]+$/, '');
@@ -126,7 +189,11 @@ function parseSingle(text: string, now: Date, zone: string): Command | undefined
   if (/^(pause|pause everything|stop everything|kill switch)$/.test(lower)) return { type: 'pause' };
   if (/^(resume|unpause)$/.test(lower)) return { type: 'resume' };
   if (/^(status|health)$/.test(lower)) return { type: 'status' };
-  if (/^(usage|cost|costs|spend|spending)$/.test(lower)) return { type: 'usage' };
+  if (/^(usage|cost|costs|model costs?)$/.test(lower)) return { type: 'usage' };
+  if (/^(?:spend|spending|expenses|my spending|my expenses|how much (?:have i|did i|i'?ve) spen[dt](?: so far)?(?: this month)?\??|what (?:did|have) i spen[dt](?: this month)?\??)$/.test(lower)) return { type: 'spending' };
+  if (/^(?:undo|delete|remove|scratch|cancel)\s+(?:that|the last|my last|last)\s+(?:expense|purchase|charge|spend|one)$|^undo (?:that )?expense$/.test(lower)) return { type: 'expense_undo' };
+  const expense = parseExpense(t, now, zone);
+  if (expense) return expense;
   if (/^(help|\?)$/.test(lower)) return { type: 'help' };
 
   if ((m = /^(?:approve|yes|y|ok|okay|confirm)(?:\s+([a-z0-9]{4,8}))?$/.exec(lower))) {
@@ -210,12 +277,15 @@ function parseSingle(text: string, now: Date, zone: string): Command | undefined
 }
 
 const SingleIntentSchema = z.object({
-  intent: z.enum(['add_task', 'snooze', 'done', 'dismiss', 'started', 'list', 'suggest', 'unknown']),
+  intent: z.enum(['add_task', 'snooze', 'done', 'dismiss', 'started', 'list', 'suggest', 'expense', 'unknown']),
   title: z.string().max(300).optional(),
   /** The user's own time words, copied verbatim. HomePilot does the date math, not the model. */
   when_text: z.string().max(120).optional(),
   ref: z.string().max(200).optional(),
   remind: z.boolean().optional(),
+  /** intent "expense": money the owner already spent. */
+  amount_usd: z.number().positive().max(999_999).optional(),
+  merchant: z.string().max(60).optional(),
   /** Several separate tasks in one message, each with its own time words. */
   tasks: z
     .array(z.object({ title: z.string().max(300), when_text: z.string().max(120).optional(), remind: z.boolean().optional() }))
@@ -225,7 +295,7 @@ const SingleIntentSchema = z.object({
 
 /** What a small model may return when the deterministic parser gives up. Dates stay as TEXT. */
 export const LlmIntentSchema = SingleIntentSchema.extend({
-  intent: z.enum(['add_task', 'snooze', 'done', 'dismiss', 'started', 'list', 'suggest', 'multi', 'unknown']),
+  intent: z.enum(['add_task', 'snooze', 'done', 'dismiss', 'started', 'list', 'suggest', 'expense', 'multi', 'unknown']),
   /** intent "multi": several different requests in one message, in the order given. One level only. */
   requests: z.array(SingleIntentSchema).min(1).max(10).optional(),
 });
@@ -233,13 +303,14 @@ export type LlmIntent = z.infer<typeof LlmIntentSchema>;
 
 export const INTENT_SYSTEM_PROMPT = [
   'You classify one text message sent to a personal task assistant by its owner.',
-  'Reply with ONLY a JSON object: {"intent": "add_task"|"snooze"|"done"|"dismiss"|"started"|"list"|"suggest"|"multi"|"unknown",',
-  '"title"?: string, "when_text"?: string, "ref"?: string, "remind"?: boolean,',
+  'Reply with ONLY a JSON object: {"intent": "add_task"|"snooze"|"done"|"dismiss"|"started"|"list"|"suggest"|"expense"|"multi"|"unknown",',
+  '"title"?: string, "when_text"?: string, "ref"?: string, "remind"?: boolean, "amount_usd"?: number, "merchant"?: string,',
   '"tasks"?: [{"title": string, "when_text"?: string, "remind"?: boolean}], "requests"?: [...]}.',
   'If the message lists several separate things to do, use intent "add_task" with one "tasks" entry per thing, each with its own time words; never merge them into one title.',
   'If the message holds different kinds of requests (for example marking one task done and adding another), use intent "multi" with "requests": [one object per request, each shaped like the top-level object without "requests"], in the order written.',
   'title: the task in a few words. when_text: copy the user\'s time words exactly, do not compute dates.',
   '"started" means the owner is doing an existing task right now ("heading to the gym now").',
+  '"expense" means money the owner already spent ("lunch was 14 bucks"): amount_usd as a number, merchant if named, title = what it was for. Money still to be paid is a task, not an expense.',
   'ref: words identifying an existing task. Use "unknown" if unsure. Never invent details.',
 ].join(' ');
 
@@ -282,6 +353,12 @@ export function commandFromLlm(intent: LlmIntent, now: Date, zone: string): Comm
       return { type: 'list' };
     case 'suggest':
       return { type: 'suggest' };
+    case 'expense': {
+      if (!intent.amount_usd) return undefined;
+      const merchant = intent.merchant?.trim() || null;
+      const note = intent.title?.trim() || null;
+      return { type: 'expense', amountUsd: Math.round(intent.amount_usd * 100) / 100, merchant, note, category: categorize(merchant, note) };
+    }
     default:
       return undefined;
   }

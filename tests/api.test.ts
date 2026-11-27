@@ -30,7 +30,7 @@ const auth = { Authorization: `Bearer ${TOKEN}` };
 
 describe('local dashboard API', () => {
   it('rejects every data route without the token', async () => {
-    for (const path of ['/', '/api/health', '/api/usage', '/api/tasks', '/api/outbox', '/api/jobs', '/api/approvals', '/api/events', '/api/export']) {
+    for (const path of ['/', '/api/health', '/api/usage', '/api/tasks', '/api/outbox', '/api/jobs', '/api/approvals', '/api/events', '/api/export', '/api/insights', '/api/activity', '/api/reminders', '/api/spending']) {
       const res = await fetch(base + path);
       expect(res.status, path).toBe(401);
     }
@@ -48,6 +48,34 @@ describe('local dashboard API', () => {
     expect(page.headers.get('content-type')).toMatch(/text\/html/);
     expect(page.headers.get('x-frame-options')).toBe('DENY');
     expect(await page.text()).toContain('<title>HomePilot</title>');
+  });
+
+  it('serves the web dashboard views with the token', async () => {
+    await h.say('remind me to call the dentist tomorrow at 10am');
+    const insights = (await (await fetch(`${base}/api/insights?days=7`, { headers: auth })).json()) as { dailySpend: unknown[]; texts: unknown };
+    expect(insights.dailySpend).toHaveLength(7);
+    expect(insights.texts).toMatchObject({ handled: 1, deterministic: 1 });
+    const activity = (await (await fetch(`${base}/api/activity?limit=5`, { headers: auth })).json()) as { kind: string }[];
+    expect(activity.map((a) => a.kind)).toContain('task_added');
+    const reminders = (await (await fetch(`${base}/api/reminders`, { headers: auth })).json()) as unknown[];
+    expect(reminders).toHaveLength(1);
+  });
+
+  it('completes tasks and deletes expenses from the dashboard', async () => {
+    const postJson = (path: string, body: unknown) =>
+      fetch(`${base}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...auth }, body: JSON.stringify(body) });
+    await h.say('remind me to call the dentist tomorrow at 10am');
+    const task = h.app.tasks.list({ states: ['open'] })[0]!;
+    expect((await postJson('/api/tasks/complete', { id: task.id })).status).toBe(200);
+    expect(h.app.tasks.get(task.id)!.state).toBe('done');
+    expect((await postJson('/api/tasks/complete', { id: 'task_nope' })).status).toBe(404);
+
+    await h.say('spent $23 at H-E-B');
+    const spending = (await (await fetch(`${base}/api/spending`, { headers: auth })).json()) as { summary: { totalUsd: number }; recent: { id: string }[] };
+    expect(spending.summary.totalUsd).toBe(23);
+    expect((await postJson('/api/expenses/delete', { id: spending.recent[0]!.id })).status).toBe(200);
+    expect(h.app.expenses.summary('America/Chicago').totalUsd).toBe(0);
+    expect((await postJson('/api/expenses/delete', { id: spending.recent[0]!.id })).status).toBe(404);
   });
 
   it('exchanges ?token= for an HttpOnly cookie and drops the token from the URL', async () => {

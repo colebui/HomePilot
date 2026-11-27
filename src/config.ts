@@ -103,6 +103,8 @@ const EnvSchema = z.object({
   HOMEPILOT_LLM_MAX_OUTPUT_TOKENS: int(1024, 16, 32_000),
 
   HOMEPILOT_MONTHLY_BUDGET_USD: num(20, 0, 100_000),
+  /** Optional monthly budget for personal expenses texted to HomePilot. 0 = none. */
+  HOMEPILOT_SPENDING_BUDGET_USD: num(0, 0, 10_000_000),
   HOMEPILOT_BUDGET_ALERT_THRESHOLDS: csv(['0.5', '0.8', '1.0']).transform((list, ctx) => {
     const out = list.map(Number);
     if (out.some((n) => !Number.isFinite(n) || n <= 0 || n > 10)) {
@@ -164,6 +166,9 @@ export interface Config {
     alertThresholds: number[];
     baselineModel: string;
   };
+  spending: {
+    monthlyBudgetUsd: number;
+  };
   policy: {
     tierBMode: 'approve' | 'auto';
     approvalTtlMinutes: number;
@@ -224,6 +229,9 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
       monthlyUsd: e.HOMEPILOT_MONTHLY_BUDGET_USD,
       alertThresholds: e.HOMEPILOT_BUDGET_ALERT_THRESHOLDS,
       baselineModel: e.HOMEPILOT_BASELINE_MODEL,
+    },
+    spending: {
+      monthlyBudgetUsd: e.HOMEPILOT_SPENDING_BUDGET_USD,
     },
     policy: {
       tierBMode: e.HOMEPILOT_TIER_B_MODE,

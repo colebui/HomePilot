@@ -256,4 +256,24 @@ CREATE TABLE imessage_inbound (
 CREATE INDEX imessage_inbound_sender ON imessage_inbound (sender, received_at);
 `,
   },
+  {
+    version: 3,
+    name: 'expenses',
+    sql: `
+-- Personal expenses the owner texts in. Soft-deleted so "undo" keeps the audit trail intact.
+CREATE TABLE expenses (
+  id             TEXT PRIMARY KEY,
+  spent_at       TEXT NOT NULL,
+  amount_usd     REAL NOT NULL CHECK (amount_usd > 0),
+  merchant       TEXT,
+  category       TEXT NOT NULL CHECK (category IN ('groceries','dining','transport','shopping','bills','health','entertainment','other')),
+  note           TEXT,
+  source         TEXT NOT NULL DEFAULT 'user',
+  correlation_id TEXT,
+  created_at     TEXT NOT NULL,
+  deleted_at     TEXT
+);
+CREATE INDEX idx_expenses_spent ON expenses(deleted_at, spent_at);
+`,
+  },
 ];
