@@ -5,6 +5,7 @@ import { openDatabase, type Db } from './db/database.js';
 import { buildAgenda, renderAgenda, type AgendaGroup } from './domain/agenda.js';
 import { ApprovalStore, type Approval } from './domain/approvals.js';
 import { EventLog } from './domain/events.js';
+import { ExpenseRepo, renderSpending } from './domain/expenses.js';
 import { PreferenceStore, SystemState } from './domain/preferences.js';
 import { ReminderRepo, type Reminder } from './domain/reminders.js';
 import { TaskRepo, type NewTask, type Task } from './domain/tasks.js';
@@ -84,7 +85,10 @@ export interface Health {
 const HELP =
   'Try: "remind me to return the package before Friday", "I need a haircut sometime this week", ' +
   '"tasks", "done with the return", "snooze that until Saturday", "don\'t remind me about that again", ' +
-  '"what should I do with my free hour?", "status", "usage", "pause", "resume".';
+  '"what should I do with my free hour?", "spent $23 at H-E-B", "spending", "status", "usage", "pause", "resume".';
+
+const money = (n: number): string => `$${n.toFixed(2)}`;
+const capitalize = (s: string): string => (s ? s[0]!.toUpperCase() + s.slice(1) : s);
 
 /**
  * Composition root. Owns the database handle and wires every component together.
@@ -97,6 +101,7 @@ export class App {
   readonly events: EventLog;
   readonly tasks: TaskRepo;
   readonly reminders: ReminderRepo;
+  readonly expenses: ExpenseRepo;
   readonly prefs: PreferenceStore;
   readonly system: SystemState;
   readonly scheduler: Scheduler;
@@ -124,6 +129,7 @@ export class App {
     this.events = new EventLog(this.db, this.clock);
     this.tasks = new TaskRepo(this.db, this.clock);
     this.reminders = new ReminderRepo(this.db, this.clock);
+    this.expenses = new ExpenseRepo(this.db, this.clock);
     this.prefs = new PreferenceStore(this.db, this.clock);
     this.system = new SystemState(this.db, this.clock);
     this.scheduler = new Scheduler(this.db, this.clock);
@@ -527,7 +533,7 @@ export class App {
 
       if (!cmd) {
         wf.finish({ succeeded: false, detail: 'not understood', feature: 'intent' });
-        return { authorized: true, reply: `I only handle tasks and reminders, and I couldn't read that as one, so I did nothing. ${HELP}`, correlationId: wf.correlationId, understoodBy: 'not_understood' };
+        return { authorized: true, reply: `I only handle tasks, reminders and expenses, and I couldn't read that as one, so I did nothing. ${HELP}`, correlationId: wf.correlationId, understoodBy: 'not_understood' };
       }
 
       // An agent-relayed channel can add tasks and ask questions, but it can never approve an
@@ -784,6 +790,47 @@ export class App {
           feature: 'system',
         };
       }
+
+      case 'expense': {
+        const e = this.expenses.add({
+          amountUsd: cmd.amountUsd,
+          merchant: cmd.merchant,
+          note: cmd.note,
+          category: cmd.category,
+          spentAt: cmd.spentAt,
+          source: msg.channel,
+          correlationId,
+        });
+        this.events.record({
+          kind: 'expense.logged',
+          actor: msg.sender,
+          correlationId,
+          subjectType: 'expense',
+          subjectId: e.id,
+          data: { amountUsd: e.amountUsd, merchant: e.merchant, note: e.note, category: e.category },
+        });
+        const s = this.expenses.summary(this.tz);
+        const cat = s.byCategory.find((c) => c.category === e.category);
+        const where = e.merchant ? ` at ${e.merchant}` : e.note ? ` on ${e.note}` : '';
+        const day = cmd.spentAt ? ` (${inZone(e.spentAt, this.tz).toFormat('ccc LLL d')})` : '';
+        const budget = this.config.spending.monthlyBudgetUsd;
+        const tail = budget > 0 ? ` ${Math.round((s.totalUsd / budget) * 100)}% of your ${money(budget)} budget used.` : '';
+        return {
+          ok: true,
+          reply: `Logged ${money(e.amountUsd)}${where}${day} as ${e.category}. ${capitalize(e.category)} this month: ${money(cat?.totalUsd ?? e.amountUsd)}.${tail} Text "undo expense" if that's wrong.`,
+          feature: 'spending',
+        };
+      }
+
+      case 'expense_undo': {
+        const e = this.expenses.undoLast();
+        if (!e) return { ok: false, reply: 'There is no expense to undo.', feature: 'spending' };
+        this.events.record({ kind: 'expense.removed', actor: msg.sender, correlationId, subjectType: 'expense', subjectId: e.id, data: { amountUsd: e.amountUsd } });
+        return { ok: true, reply: `Took off the ${money(e.amountUsd)}${e.merchant ? ` ${e.merchant}` : ''} expense.`, feature: 'spending' };
+      }
+
+      case 'spending':
+        return { ok: true, reply: renderSpending(this.expenses.summary(this.tz), this.config.spending.monthlyBudgetUsd), feature: 'spending' };
 
       case 'usage': {
         const u = this.usageReport();

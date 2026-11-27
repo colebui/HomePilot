@@ -149,6 +149,9 @@ The first visit swaps the token for a cookie and removes it from the address bar
 Loopback only. To view it from another device, use an SSH tunnel
 (`ssh -L 8787:127.0.0.1:8787 you@mac-mini`). Do not expose the port.
 
+The fuller Next.js dashboard in `web/` reads the same API with the same token. How to build
+and run it on the Mac is in [web/README.md](../web/README.md#run-it).
+
 ## Kill switch
 
 ```bash

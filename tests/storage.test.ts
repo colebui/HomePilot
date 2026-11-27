@@ -186,7 +186,7 @@ describe('preferences and memory', () => {
 describe('health', () => {
   it('reports degraded state for dead jobs and an idle scheduler', async () => {
     h = harness();
-    expect(h.app.health()).toMatchObject({ ok: true, paused: false, dryRun: true, schemaVersion: 2, problems: [] });
+    expect(h.app.health()).toMatchObject({ ok: true, paused: false, dryRun: true, schemaVersion: 3, problems: [] });
     h.app.scheduler.enqueue({ type: 'no.such.handler', runAt: new FakeClock(MONDAY_9AM).now(), idempotencyKey: 'x', maxAttempts: 1 });
     h.clock.advanceMinutes(11);
     expect(h.app.health().problems.join(' ')).toMatch(/more than 10 minutes overdue/);

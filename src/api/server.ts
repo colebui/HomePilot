@@ -3,6 +3,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { App } from '../app.js';
 import { exportLlmCalls } from '../telemetry/report.js';
 import { DASHBOARD_HTML } from './dashboard.js';
+import { buildActivity, buildInsights, upcomingReminders } from './insights.js';
 
 const COOKIE = 'homepilot_session';
 const MAX_BODY = 16 * 1024;
@@ -87,7 +88,7 @@ export function createApiServer(app: App, opts: { token: string; port: number })
           if (origin && !allowedHosts.has(origin.replace(/^https?:\/\//, ''))) return json(res, 403, { error: 'forbidden origin' });
           if (!(req.headers['content-type'] ?? '').startsWith('application/json')) return json(res, 415, { error: 'expected application/json' });
           const raw = await readBody(req);
-          const body = (raw ? JSON.parse(raw) : {}) as { text?: unknown };
+          const body = (raw ? JSON.parse(raw) : {}) as { text?: unknown; id?: unknown };
 
           if (url.pathname === '/api/say') {
             if (typeof body.text !== 'string' || !body.text.trim()) return json(res, 400, { error: 'text is required' });
@@ -97,6 +98,17 @@ export function createApiServer(app: App, opts: { token: string; port: number })
           if (url.pathname === '/api/pause' || url.pathname === '/api/resume') {
             const out = await app.handleMessage({ sender: 'local-cli', channel: 'dashboard', text: url.pathname.endsWith('pause') ? 'pause' : 'resume' });
             return json(res, 200, out);
+          }
+          if (url.pathname === '/api/tasks/complete') {
+            if (typeof body.id !== 'string' || !app.tasks.get(body.id)) return json(res, 404, { error: 'task not found' });
+            const task = app.completeTask(body.id, 'dashboard');
+            return json(res, 200, { id: task.id, state: task.state });
+          }
+          if (url.pathname === '/api/expenses/delete') {
+            const gone = typeof body.id === 'string' ? app.expenses.remove(body.id) : undefined;
+            if (!gone) return json(res, 404, { error: 'expense not found' });
+            app.events.record({ kind: 'expense.removed', actor: 'dashboard', subjectType: 'expense', subjectId: gone.id, data: { amountUsd: gone.amountUsd } });
+            return json(res, 200, { id: gone.id, deleted: true });
           }
           if (url.pathname === '/api/tick') return json(res, 200, await app.tick());
           return json(res, 404, { error: 'not found' });
@@ -121,6 +133,18 @@ export function createApiServer(app: App, opts: { token: string; port: number })
             return json(res, 200, { stats: app.scheduler.stats(), pending: app.scheduler.list({ states: ['pending', 'running', 'dead'], limit: 50 }) });
           case '/api/approvals':
             return json(res, 200, app.approvals.list(30).map(({ args: _args, ...rest }) => rest));
+          case '/api/insights':
+            return json(res, 200, buildInsights(app.db, app.clock.now(), app.config.timezone, { days: Number(url.searchParams.get('days') ?? 30) || 30 }));
+          case '/api/activity':
+            return json(res, 200, buildActivity(app.db, { limit: Number(url.searchParams.get('limit') ?? 50) || 50 }));
+          case '/api/reminders':
+            return json(res, 200, upcomingReminders(app.db, { limit: Number(url.searchParams.get('limit') ?? 20) || 20 }));
+          case '/api/spending':
+            return json(res, 200, {
+              budgetUsd: app.config.spending.monthlyBudgetUsd,
+              summary: app.expenses.summary(app.config.timezone),
+              recent: app.expenses.list({ limit: Number(url.searchParams.get('limit') ?? 25) || 25 }),
+            });
           case '/api/events':
             return json(res, 200, app.events.list({ limit: 100 }));
           case '/api/workflow': {
