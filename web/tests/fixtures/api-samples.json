@@ -1,0 +1,822 @@
+{
+  "/api/health": {
+    "ok": true,
+    "time": "2026-11-16T10:00:30.000-06:00",
+    "timezone": "America/Chicago",
+    "paused": false,
+    "dryRun": true,
+    "schemaVersion": 3,
+    "jobs": {
+      "pending": 2,
+      "running": 0,
+      "succeeded": 1,
+      "dead": 0,
+      "cancelled": 0
+    },
+    "notificationsQueued": 1,
+    "pendingApprovals": 1,
+    "openTasks": 3,
+    "lastTickAt": "2026-11-16T16:00:30.000Z",
+    "modelProvider": {
+      "name": "mock",
+      "live": false
+    },
+    "channel": {
+      "name": "dry-run",
+      "live": false
+    },
+    "calendar": {
+      "name": "mock",
+      "connected": true
+    },
+    "problems": []
+  },
+  "/api/usage": {
+    "generatedAt": "2026-11-16T16:00:30.000Z",
+    "timezone": "America/Chicago",
+    "containsSimulatedData": true,
+    "spend": {
+      "today": {
+        "providerReportedUsd": 0.00021,
+        "estimatedUsd": 0,
+        "simulatedUsd": 0.00005265
+      },
+      "last7Days": {
+        "providerReportedUsd": 0.00021,
+        "estimatedUsd": 0,
+        "simulatedUsd": 0.00005265
+      },
+      "thisMonth": {
+        "providerReportedUsd": 0.00021,
+        "estimatedUsd": 0,
+        "simulatedUsd": 0.00005265
+      }
+    },
+    "byModel": [
+      {
+        "key": "deepseek/deepseek-v4.1-flash-1017",
+        "calls": 2,
+        "inputTokens": 1531,
+        "outputTokens": 95,
+        "cachedTokens": 0,
+        "realCostUsd": 0.00021,
+        "simulatedCostUsd": 0.00005265
+      }
+    ],
+    "byFeature": [
+      {
+        "key": "intent",
+        "calls": 2,
+        "inputTokens": 1531,
+        "outputTokens": 95,
+        "cachedTokens": 0,
+        "realCostUsd": 0.00021,
+        "simulatedCostUsd": 0.00005265
+      }
+    ],
+    "calls": {
+      "total": 2,
+      "ok": 2,
+      "invalidOutput": 0,
+      "errors": 0,
+      "blockedByBudget": 0,
+      "timeouts": 0,
+      "retries": 0,
+      "fallbacks": 0,
+      "avgLatencyMs": 320
+    },
+    "workflows": {
+      "total": 9,
+      "succeeded": 8,
+      "failed": 1,
+      "unfinished": 0,
+      "failureRate": 0.1111111111111111,
+      "deterministic": 8,
+      "usedModel": 1,
+      "costPerSuccessfulWorkflowUsd": 0.00002625
+    },
+    "baseline": {
+      "model": "claude-opus-5-5",
+      "priceDate": "2026-11-03",
+      "hypotheticalClaudeOnlyUsd": 0.0066,
+      "actualUsd": 0.00021,
+      "differenceUsd": 0.00639,
+      "differencePct": 96.81818181818181,
+      "basis": "real calls this month",
+      "caveats": [
+        "Hypothetical: the same token counts priced at Claude API list prices. A different model would use a different number of tokens.",
+        "Token-equivalent only. It does NOT show the cheaper models gave equal-quality results.",
+        "Compared against pay-per-token Claude API pricing, not a flat-rate Claude subscription (Max/Pro), which is billed differently.",
+        "Baseline prices are a snapshot dated 2026-11-03; check the current Anthropic price list.",
+        "Where a cache-read price is unknown it is assumed to be 10% of the input price.",
+        "Failed and retried calls are included on both sides when they consumed tokens."
+      ]
+    },
+    "budget": {
+      "monthlyUsd": 20,
+      "usedUsd": 0.00021,
+      "usedFraction": 0.000010500000000000001,
+      "thresholds": [
+        {
+          "at": 0.5,
+          "crossed": false
+        },
+        {
+          "at": 0.8,
+          "crossed": false
+        },
+        {
+          "at": 1,
+          "crossed": false
+        }
+      ]
+    },
+    "otherCosts": [],
+    "priceAssumptions": [
+      {
+        "model": "anthropic/claude-fable-5.2",
+        "inputPerMTok": 8,
+        "outputPerMTok": 40,
+        "cacheReadPerMTok": 0.2,
+        "source": "openrouter catalog (seed snapshot)",
+        "asOf": "2026-11-16"
+      },
+      {
+        "model": "deepseek/deepseek-v4.1-flash-1017",
+        "inputPerMTok": 0.15,
+        "outputPerMTok": 0.6,
+        "cacheReadPerMTok": 0.003,
+        "source": "openrouter catalog (seed snapshot)",
+        "asOf": "2026-11-16"
+      },
+      {
+        "model": "google/gemini-4-hydrogen",
+        "inputPerMTok": 1.5,
+        "outputPerMTok": 7.5,
+        "cacheReadPerMTok": 0.075,
+        "source": "openrouter catalog (seed snapshot)",
+        "asOf": "2026-11-16"
+      },
+      {
+        "model": "openai/gpt-6.1-terra",
+        "inputPerMTok": 1,
+        "outputPerMTok": 5,
+        "cacheReadPerMTok": 0.05,
+        "source": "openrouter catalog (seed snapshot)",
+        "asOf": "2026-11-16"
+      },
+      {
+        "model": "tencent/hy4-flash",
+        "inputPerMTok": 0.035,
+        "outputPerMTok": 0.1405,
+        "cacheReadPerMTok": 0.0015,
+        "source": "openrouter catalog (seed snapshot)",
+        "asOf": "2026-11-16"
+      },
+      {
+        "model": "claude-fable-5-2 (baseline)",
+        "inputPerMTok": 8,
+        "outputPerMTok": 40,
+        "cacheReadPerMTok": 0.2,
+        "source": "Anthropic API list price snapshot",
+        "asOf": "2026-11-03"
+      },
+      {
+        "model": "claude-opus-5-5 (baseline)",
+        "inputPerMTok": 4,
+        "outputPerMTok": 20,
+        "cacheReadPerMTok": 0.2,
+        "source": "Anthropic API list price snapshot",
+        "asOf": "2026-11-03"
+      },
+      {
+        "model": "claude-sonnet-5-5 (baseline)",
+        "inputPerMTok": 2,
+        "outputPerMTok": 10,
+        "cacheReadPerMTok": 0.1,
+        "source": "Anthropic API list price snapshot",
+        "asOf": "2026-11-03"
+      },
+      {
+        "model": "claude-haiku-5-5 (baseline)",
+        "inputPerMTok": 0.1,
+        "outputPerMTok": 0.5,
+        "cacheReadPerMTok": null,
+        "source": "Anthropic API list price snapshot",
+        "asOf": "2026-11-03"
+      }
+    ]
+  },
+  "/api/agenda": [
+    {
+      "label": "Tomorrow · Tue Nov 17",
+      "items": [
+        {
+          "id": "task_16c95ac8d91142799eee",
+          "title": "Pick up dry cleaning",
+          "time": "5:00 PM"
+        }
+      ]
+    },
+    {
+      "label": "Fri Nov 20",
+      "items": [
+        {
+          "id": "task_75423121b41e47b6a0fc",
+          "title": "Pay the water bill",
+          "time": "Any time"
+        }
+      ]
+    },
+    {
+      "label": "Sun Nov 22",
+      "items": [
+        {
+          "id": "task_7a64fdd8102a4fdf80b8",
+          "title": "Haircut",
+          "time": "By end of day"
+        }
+      ]
+    }
+  ],
+  "/api/tasks": [
+    {
+      "id": "task_16c95ac8d91142799eee",
+      "title": "Pick up dry cleaning",
+      "originalRequest": "remind me to pick up dry cleaning tomorrow at 5pm",
+      "category": null,
+      "state": "open",
+      "priority": 2,
+      "dueAt": "2026-11-17T23:00:00.000Z",
+      "windowStart": null,
+      "windowEnd": null,
+      "estimatedMinutes": null,
+      "recurrence": null,
+      "dependsOn": [],
+      "location": null,
+      "energy": null,
+      "snoozeUntil": null,
+      "completedAt": null,
+      "doNotRemind": false,
+      "lastNotifiedAt": null,
+      "notificationCount": 0,
+      "explanation": null,
+      "source": "samples",
+      "createdAt": "2026-11-16T15:00:00.000Z",
+      "updatedAt": "2026-11-16T15:00:00.000Z"
+    },
+    {
+      "id": "task_75423121b41e47b6a0fc",
+      "title": "Pay the water bill",
+      "originalRequest": "remind me to pay the water bill by friday",
+      "category": null,
+      "state": "open",
+      "priority": 2,
+      "dueAt": "2026-11-21T05:59:59.999Z",
+      "windowStart": null,
+      "windowEnd": null,
+      "estimatedMinutes": null,
+      "recurrence": null,
+      "dependsOn": [],
+      "location": null,
+      "energy": null,
+      "snoozeUntil": null,
+      "completedAt": null,
+      "doNotRemind": false,
+      "lastNotifiedAt": null,
+      "notificationCount": 0,
+      "explanation": null,
+      "source": "samples",
+      "createdAt": "2026-11-16T15:00:00.000Z",
+      "updatedAt": "2026-11-16T15:00:00.000Z"
+    },
+    {
+      "id": "task_7a64fdd8102a4fdf80b8",
+      "title": "Haircut",
+      "originalRequest": "I need a haircut sometime this week",
+      "category": null,
+      "state": "open",
+      "priority": 2,
+      "dueAt": null,
+      "windowStart": "2026-11-16T15:00:00.000Z",
+      "windowEnd": "2026-11-23T05:59:59.999Z",
+      "estimatedMinutes": null,
+      "recurrence": null,
+      "dependsOn": [],
+      "location": null,
+      "energy": null,
+      "snoozeUntil": null,
+      "completedAt": null,
+      "doNotRemind": false,
+      "lastNotifiedAt": null,
+      "notificationCount": 0,
+      "explanation": null,
+      "source": "samples",
+      "createdAt": "2026-11-16T15:00:00.000Z",
+      "updatedAt": "2026-11-16T15:00:00.000Z"
+    }
+  ],
+  "/api/approvals": [
+    {
+      "id": "apr_d1f6f900f43f4d0c91ab",
+      "code": "7U6X2",
+      "tool": "shopping.place_order",
+      "tier": "C",
+      "actionHash": "58d8f83b0ba8d17b0ce6ab9b7109df7ba6b3b6e98c749766d8d2cea523262e30",
+      "action": "place heb order CART-1",
+      "target": "heb",
+      "priceUsd": 42.5,
+      "state": "pending",
+      "idempotencyKey": "sample-order",
+      "correlationId": null,
+      "requestedAt": "2026-11-16T16:00:30.000Z",
+      "expiresAt": "2026-11-16T16:15:30.000Z",
+      "decidedAt": null,
+      "decidedBy": null,
+      "consumedAt": null
+    }
+  ],
+  "/api/insights": {
+    "generatedAt": "2026-11-16T16:00:30.000Z",
+    "timezone": "America/Chicago",
+    "today": {
+      "tasksAdded": 4,
+      "tasksCompleted": 1,
+      "remindersSent": 1,
+      "textsHandled": 8
+    },
+    "dailySpend": [
+      {
+        "date": "2026-10-18",
+        "realUsd": 0,
+        "simulatedUsd": 0,
+        "calls": 0
+      },
+      {
+        "date": "2026-10-19",
+        "realUsd": 0,
+        "simulatedUsd": 0,
+        "calls": 0
+      },
+      {
+        "date": "2026-10-20",
+        "realUsd": 0,
+        "simulatedUsd": 0,
+        "calls": 0
+      },
+      {
+        "date": "2026-10-21",
+        "realUsd": 0,
+        "simulatedUsd": 0,
+        "calls": 0
+      },
+      {
+        "date": "2026-10-22",
+        "realUsd": 0,
+        "simulatedUsd": 0,
+        "calls": 0
+      },
+      {
+        "date": "2026-10-23",
+        "realUsd": 0,
+        "simulatedUsd": 0,
+        "calls": 0
+      },
+      {
+        "date": "2026-10-24",
+        "realUsd": 0,
+        "simulatedUsd": 0,
+        "calls": 0
+      },
+      {
+        "date": "2026-10-25",
+        "realUsd": 0,
+        "simulatedUsd": 0,
+        "calls": 0
+      },
+      {
+        "date": "2026-10-26",
+        "realUsd": 0,
+        "simulatedUsd": 0,
+        "calls": 0
+      },
+      {
+        "date": "2026-10-27",
+        "realUsd": 0,
+        "simulatedUsd": 0,
+        "calls": 0
+      },
+      {
+        "date": "2026-10-28",
+        "realUsd": 0,
+        "simulatedUsd": 0,
+        "calls": 0
+      },
+      {
+        "date": "2026-10-29",
+        "realUsd": 0,
+        "simulatedUsd": 0,
+        "calls": 0
+      },
+      {
+        "date": "2026-10-30",
+        "realUsd": 0,
+        "simulatedUsd": 0,
+        "calls": 0
+      },
+      {
+        "date": "2026-10-31",
+        "realUsd": 0,
+        "simulatedUsd": 0,
+        "calls": 0
+      },
+      {
+        "date": "2026-11-01",
+        "realUsd": 0,
+        "simulatedUsd": 0,
+        "calls": 0
+      },
+      {
+        "date": "2026-11-02",
+        "realUsd": 0,
+        "simulatedUsd": 0,
+        "calls": 0
+      },
+      {
+        "date": "2026-11-03",
+        "realUsd": 0,
+        "simulatedUsd": 0,
+        "calls": 0
+      },
+      {
+        "date": "2026-11-04",
+        "realUsd": 0,
+        "simulatedUsd": 0,
+        "calls": 0
+      },
+      {
+        "date": "2026-11-05",
+        "realUsd": 0,
+        "simulatedUsd": 0,
+        "calls": 0
+      },
+      {
+        "date": "2026-11-06",
+        "realUsd": 0,
+        "simulatedUsd": 0,
+        "calls": 0
+      },
+      {
+        "date": "2026-11-07",
+        "realUsd": 0,
+        "simulatedUsd": 0,
+        "calls": 0
+      },
+      {
+        "date": "2026-11-08",
+        "realUsd": 0,
+        "simulatedUsd": 0,
+        "calls": 0
+      },
+      {
+        "date": "2026-11-09",
+        "realUsd": 0,
+        "simulatedUsd": 0,
+        "calls": 0
+      },
+      {
+        "date": "2026-11-10",
+        "realUsd": 0,
+        "simulatedUsd": 0,
+        "calls": 0
+      },
+      {
+        "date": "2026-11-11",
+        "realUsd": 0,
+        "simulatedUsd": 0,
+        "calls": 0
+      },
+      {
+        "date": "2026-11-12",
+        "realUsd": 0,
+        "simulatedUsd": 0,
+        "calls": 0
+      },
+      {
+        "date": "2026-11-13",
+        "realUsd": 0,
+        "simulatedUsd": 0,
+        "calls": 0
+      },
+      {
+        "date": "2026-11-14",
+        "realUsd": 0,
+        "simulatedUsd": 0,
+        "calls": 0
+      },
+      {
+        "date": "2026-11-15",
+        "realUsd": 0,
+        "simulatedUsd": 0,
+        "calls": 0
+      },
+      {
+        "date": "2026-11-16",
+        "realUsd": 0.00021,
+        "simulatedUsd": 0.00005265,
+        "calls": 2
+      }
+    ],
+    "projectedMonthUsd": 0.00040863944505754374,
+    "latency": {
+      "overall": {
+        "calls": 2,
+        "p50Ms": 0,
+        "p95Ms": 640,
+        "failureRate": 0
+      },
+      "byModel": [
+        {
+          "model": "deepseek/deepseek-v4.1-flash-1017",
+          "calls": 2,
+          "p50Ms": 0,
+          "p95Ms": 640,
+          "failureRate": 0
+        }
+      ]
+    },
+    "texts": {
+      "handled": 8,
+      "deterministic": 7,
+      "usedModel": 0,
+      "notUnderstood": 1
+    }
+  },
+  "/api/activity": [
+    {
+      "id": "e11",
+      "ts": "2026-11-16T16:00:30.000Z",
+      "kind": "task_completed",
+      "title": "Call the dentist",
+      "detail": null
+    },
+    {
+      "id": "e10",
+      "ts": "2026-11-16T16:00:30.000Z",
+      "kind": "reminder_sent",
+      "title": "Call the dentist",
+      "detail": null
+    },
+    {
+      "id": "wwf_9dd0f11c056c4550a025",
+      "ts": "2026-11-16T16:00:30.000Z",
+      "kind": "text_handled",
+      "title": "Marked a task done",
+      "detail": "No model needed"
+    },
+    {
+      "id": "e9",
+      "ts": "2026-11-16T15:00:00.000Z",
+      "kind": "expense_logged",
+      "title": "$45.00 on gas",
+      "detail": "transport"
+    },
+    {
+      "id": "e8",
+      "ts": "2026-11-16T15:00:00.000Z",
+      "kind": "expense_logged",
+      "title": "$23.40 at H-E-B",
+      "detail": "groceries"
+    },
+    {
+      "id": "e6",
+      "ts": "2026-11-16T15:00:00.000Z",
+      "kind": "task_added",
+      "title": "Pay the water bill",
+      "detail": null
+    },
+    {
+      "id": "e5",
+      "ts": "2026-11-16T15:00:00.000Z",
+      "kind": "task_added",
+      "title": "Haircut",
+      "detail": null
+    },
+    {
+      "id": "e3",
+      "ts": "2026-11-16T15:00:00.000Z",
+      "kind": "task_added",
+      "title": "Pick up dry cleaning",
+      "detail": null
+    },
+    {
+      "id": "e1",
+      "ts": "2026-11-16T15:00:00.000Z",
+      "kind": "task_added",
+      "title": "Call the dentist",
+      "detail": null
+    },
+    {
+      "id": "wwf_1ecb6ded76a243549a30",
+      "ts": "2026-11-16T15:00:00.000Z",
+      "kind": "text_not_understood",
+      "title": "Couldn't read a text",
+      "detail": "Needed a model"
+    },
+    {
+      "id": "wwf_89fd5477773649638dba",
+      "ts": "2026-11-16T15:00:00.000Z",
+      "kind": "text_handled",
+      "title": "Logged an expense",
+      "detail": "No model needed"
+    },
+    {
+      "id": "wwf_b8dcde998d514002addc",
+      "ts": "2026-11-16T15:00:00.000Z",
+      "kind": "text_handled",
+      "title": "Logged an expense",
+      "detail": "No model needed"
+    },
+    {
+      "id": "wwf_945065db5ff6468e9856",
+      "ts": "2026-11-16T15:00:00.000Z",
+      "kind": "text_handled",
+      "title": "Added a task",
+      "detail": "No model needed"
+    },
+    {
+      "id": "wwf_44f2e6a44b1645b8af0f",
+      "ts": "2026-11-16T15:00:00.000Z",
+      "kind": "text_handled",
+      "title": "Added a task",
+      "detail": "No model needed"
+    },
+    {
+      "id": "wwf_d8051db7889e4c50b287",
+      "ts": "2026-11-16T15:00:00.000Z",
+      "kind": "text_handled",
+      "title": "Added a task",
+      "detail": "No model needed"
+    },
+    {
+      "id": "wwf_835e0243a5744bd8bdac",
+      "ts": "2026-11-16T15:00:00.000Z",
+      "kind": "text_handled",
+      "title": "Added a task",
+      "detail": "No model needed"
+    }
+  ],
+  "/api/reminders": [
+    {
+      "id": "rem_37e1a7b3dc114350aaa8",
+      "taskId": "task_16c95ac8d91142799eee",
+      "title": "Pick up dry cleaning",
+      "fireAt": "2026-11-17T23:00:00.000Z"
+    },
+    {
+      "id": "rem_119a5ddc137a4143b7dd",
+      "taskId": "task_75423121b41e47b6a0fc",
+      "title": "Pay the water bill",
+      "fireAt": "2026-11-20T15:00:00.000Z"
+    }
+  ],
+  "/api/spending": {
+    "budgetUsd": 0,
+    "summary": {
+      "monthStart": "2026-11-01T05:00:00.000Z",
+      "totalUsd": 68.4,
+      "count": 2,
+      "byCategory": [
+        {
+          "category": "transport",
+          "totalUsd": 45,
+          "count": 1
+        },
+        {
+          "category": "groceries",
+          "totalUsd": 23.4,
+          "count": 1
+        }
+      ],
+      "topMerchants": [
+        {
+          "merchant": "H-E-B",
+          "totalUsd": 23.4,
+          "count": 1
+        }
+      ],
+      "lastMonthSameDaysUsd": 0,
+      "daily": [
+        {
+          "date": "2026-11-01",
+          "totalUsd": 0,
+          "billsUsd": 0
+        },
+        {
+          "date": "2026-11-02",
+          "totalUsd": 0,
+          "billsUsd": 0
+        },
+        {
+          "date": "2026-11-03",
+          "totalUsd": 0,
+          "billsUsd": 0
+        },
+        {
+          "date": "2026-11-04",
+          "totalUsd": 0,
+          "billsUsd": 0
+        },
+        {
+          "date": "2026-11-05",
+          "totalUsd": 0,
+          "billsUsd": 0
+        },
+        {
+          "date": "2026-11-06",
+          "totalUsd": 0,
+          "billsUsd": 0
+        },
+        {
+          "date": "2026-11-07",
+          "totalUsd": 0,
+          "billsUsd": 0
+        },
+        {
+          "date": "2026-11-08",
+          "totalUsd": 0,
+          "billsUsd": 0
+        },
+        {
+          "date": "2026-11-09",
+          "totalUsd": 0,
+          "billsUsd": 0
+        },
+        {
+          "date": "2026-11-10",
+          "totalUsd": 0,
+          "billsUsd": 0
+        },
+        {
+          "date": "2026-11-11",
+          "totalUsd": 0,
+          "billsUsd": 0
+        },
+        {
+          "date": "2026-11-12",
+          "totalUsd": 0,
+          "billsUsd": 0
+        },
+        {
+          "date": "2026-11-13",
+          "totalUsd": 0,
+          "billsUsd": 0
+        },
+        {
+          "date": "2026-11-14",
+          "totalUsd": 0,
+          "billsUsd": 0
+        },
+        {
+          "date": "2026-11-15",
+          "totalUsd": 45,
+          "billsUsd": 0
+        },
+        {
+          "date": "2026-11-16",
+          "totalUsd": 23.4,
+          "billsUsd": 0
+        }
+      ]
+    },
+    "recent": [
+      {
+        "id": "exp_1816abea39d64375a54e",
+        "spentAt": "2026-11-16T15:00:00.000Z",
+        "amountUsd": 23.4,
+        "merchant": "H-E-B",
+        "category": "groceries",
+        "note": null,
+        "source": "samples",
+        "createdAt": "2026-11-16T15:00:00.000Z"
+      },
+      {
+        "id": "exp_c359c0c9216a405f9b4d",
+        "spentAt": "2026-11-15T18:00:00.000Z",
+        "amountUsd": 45,
+        "merchant": null,
+        "category": "transport",
+        "note": "gas",
+        "source": "samples",
+        "createdAt": "2026-11-16T15:00:00.000Z"
+      }
+    ]
+  },
+  "POST /api/say": {
+    "authorized": true,
+    "reply": "Tomorrow · Tue Nov 17\n5:00 PM · Pick up dry cleaning\n\nFri Nov 20\nAny time · Pay the water bill\n\nSun Nov 22\nBy end of day · Haircut",
+    "correlationId": "wf_349184fbefe24b09b223",
+    "understoodBy": "deterministic",
+    "command": "list"
+  }
+}

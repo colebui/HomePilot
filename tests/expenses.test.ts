@@ -18,6 +18,8 @@ describe('expense parsing', () => {
     ['grabbed coffee for 6 bucks', { amountUsd: 6, merchant: null, note: 'coffee', category: 'dining' }],
     ['i spent $1,200 on rent', { amountUsd: 1200, merchant: null, note: 'rent', category: 'bills' }],
     ['spent $30 on a gift', { amountUsd: 30, merchant: null, note: 'gift', category: 'other' }],
+    ['paid 45 for gas', { amountUsd: 45, merchant: null, note: 'gas', category: 'transport' }],
+    ['spent 18 at Target', { amountUsd: 18, merchant: 'Target', category: 'shopping' }],
   ])('%s', (text, expected) => {
     expect(parseExpense(text, NOW, TZ)).toMatchObject({ type: 'expense', ...expected });
   });
@@ -30,7 +32,7 @@ describe('expense parsing', () => {
   });
 
   it('never treats a task about money as money already spent', () => {
-    for (const text of ['I need to pay $60 for gas', 'remind me to pay the $90 water bill friday', 'pay rent tomorrow', 'spent the day cleaning']) {
+    for (const text of ['I need to pay $60 for gas', 'remind me to pay the $90 water bill friday', 'pay rent tomorrow', 'spent the day cleaning', 'spent 2 hours on homework', 'got tickets for 2']) {
       const cmd = parseCommand(text, NOW, TZ);
       expect(cmd?.type, text).not.toBe('expense');
     }
@@ -72,7 +74,7 @@ describe('expenses end to end', () => {
 
     const s = h.app.expenses.summary(TZ);
     expect(s).toMatchObject({ totalUsd: 75.25, count: 3, byCategory: [{ category: 'groceries', totalUsd: 63.25, count: 2 }, { category: 'dining', totalUsd: 12, count: 1 }] });
-    expect(s.daily.at(-1)).toEqual({ date: '2026-11-16', totalUsd: 75.25 });
+    expect(s.daily.at(-1)).toEqual({ date: '2026-11-16', totalUsd: 75.25, billsUsd: 0 });
     expect(s.daily).toHaveLength(16);
 
     expect(await h.say('spending')).toContain('This month: $75.25 across 3 expenses');

@@ -74,7 +74,8 @@ export interface SpendingSummary {
   /** Total for the same days of last month (day 1 through today's day number). */
   lastMonthSameDaysUsd: number;
   /** Local YYYY-MM-DD -> total, for every day of this month so far. */
-  daily: Array<{ date: string; totalUsd: number }>;
+  /** Every day of this month so far. billsUsd is the part in "bills", so a chart can show day-to-day spending without rent dwarfing it. */
+  daily: Array<{ date: string; totalUsd: number; billsUsd: number }>;
 }
 
 export class ExpenseRepo {
@@ -141,8 +142,8 @@ export class ExpenseRepo {
     const rows = this.list({ since: monthStart, limit: 1000 });
     const byCat = new Map<Category, { totalUsd: number; count: number }>();
     const byMerchant = new Map<string, { merchant: string; totalUsd: number; count: number }>();
-    const daily = new Map<string, number>();
-    for (let d = local.startOf('month'); d <= local; d = d.plus({ days: 1 })) daily.set(d.toISODate()!, 0);
+    const daily = new Map<string, { total: number; bills: number }>();
+    for (let d = local.startOf('month'); d <= local; d = d.plus({ days: 1 })) daily.set(d.toISODate()!, { total: 0, bills: 0 });
     for (const e of rows) {
       const c = byCat.get(e.category) ?? { totalUsd: 0, count: 0 };
       c.totalUsd += e.amountUsd;
@@ -156,7 +157,11 @@ export class ExpenseRepo {
         byMerchant.set(k, m);
       }
       const day = inZone(e.spentAt, tz).toISODate()!;
-      if (daily.has(day)) daily.set(day, daily.get(day)! + e.amountUsd);
+      const slot = daily.get(day);
+      if (slot) {
+        slot.total += e.amountUsd;
+        if (e.category === 'bills') slot.bills += e.amountUsd;
+      }
     }
     const lastStart = local.startOf('month').minus({ months: 1 });
     const lastEnd = lastStart.plus({ days: local.day });
@@ -173,7 +178,7 @@ export class ExpenseRepo {
       byCategory: [...byCat.entries()].map(([category, v]) => ({ category, totalUsd: round(v.totalUsd), count: v.count })).sort((a, b) => b.totalUsd - a.totalUsd),
       topMerchants: [...byMerchant.values()].map((m) => ({ ...m, totalUsd: round(m.totalUsd) })).sort((a, b) => b.totalUsd - a.totalUsd).slice(0, 5),
       lastMonthSameDaysUsd: round(last),
-      daily: [...daily.entries()].map(([date, totalUsd]) => ({ date, totalUsd: round(totalUsd) })),
+      daily: [...daily.entries()].map(([date, v]) => ({ date, totalUsd: round(v.total), billsUsd: round(v.bills) })),
     };
   }
 }

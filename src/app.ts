@@ -807,7 +807,7 @@ export class App {
           correlationId,
           subjectType: 'expense',
           subjectId: e.id,
-          data: { amountUsd: e.amountUsd, merchant: e.merchant, category: e.category },
+          data: { amountUsd: e.amountUsd, merchant: e.merchant, note: e.note, category: e.category },
         });
         const s = this.expenses.summary(this.tz);
         const cat = s.byCategory.find((c) => c.category === e.category);

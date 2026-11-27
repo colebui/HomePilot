@@ -8,8 +8,13 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  check:
+  service:
+    name: Service (Node ${{ matrix.node }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -24,3 +29,41 @@ jobs:
       - run: npm run check
       - run: npm run build
       - run: npm audit --omit=dev
+
+  web:
+    name: Web dashboard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            web/package-lock.json
+      - name: Install the service
+        run: npm ci
+      - name: Install the dashboard
+        working-directory: web
+        run: npm ci
+      # Contract test: regenerate real responses from this commit's service, so the dashboard's
+      # schemas are checked against what the service sends now, not a stale copy.
+      - name: Regenerate API samples from the service
+        run: npm run api-samples
+      - name: Lint, type-check and unit tests
+        working-directory: web
+        run: npm run check
+      - name: Production build (demo mode)
+        working-directory: web
+        env:
+          HOMEPILOT_MODE: demo
+        run: npm run build
+      - name: Install Chromium
+        working-directory: web
+        run: npx playwright install --with-deps chromium
+      - name: Browser smoke tests
+        working-directory: web
+        run: npm run test:e2e -- --trace off
+      - run: npm audit --omit=dev
+        working-directory: web

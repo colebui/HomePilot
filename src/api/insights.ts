@@ -207,6 +207,9 @@ const COMMAND_LABELS: Record<string, string> = {
   help: 'Sent help',
   approve: 'Approved an action',
   deny: 'Denied an action',
+  expense: 'Logged an expense',
+  expense_undo: 'Took back an expense',
+  spending: 'Sent a spending summary',
   pause: 'Paused reminders',
   resume: 'Resumed reminders',
 };
@@ -257,7 +260,7 @@ export function buildActivity(db: Db, opts: { limit?: number } = {}): ActivityIt
         detail = data.late ? 'Sent late' : null;
         break;
       case 'expense.logged':
-        title = `$${Number(data.amountUsd ?? 0).toFixed(2)}${data.merchant ? ` at ${String(data.merchant)}` : ''}`;
+        title = `$${Number(data.amountUsd ?? 0).toFixed(2)}${data.merchant ? ` at ${String(data.merchant)}` : data.note ? ` on ${String(data.note)}` : ''}`;
         detail = typeof data.category === 'string' ? data.category : null;
         break;
     }

@@ -123,7 +123,7 @@ export function parseCommand(text: string, now: Date, zone: string): Command | u
   return single;
 }
 
-const AMOUNT = String.raw`\$\s?(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)|(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)\s*(?:dollars|bucks|usd)\b|(\d{1,6}\.\d{2})\b`;
+const AMOUNT = String.raw`\$\s?(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)|(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)\s*(?:dollars|bucks|usd)\b|(\d{1,6}\.\d{2})\b|(\d{1,6}(?:,\d{3})*)(?=\s+(?:at|on|for|from|@)\b|\s*$)`;
 
 /**
  * "spent $23 at H-E-B", "paid 60 for gas yesterday", "$12.50 lunch at Chipotle",
@@ -136,14 +136,15 @@ export function parseExpense(text: string, now: Date, zone: string): Extract<Com
   let rest = '';
   let m: RegExpExecArray | null;
   if ((m = new RegExp(String.raw`^(?:i\s+)?(?:just\s+)?(?:spent|paid|dropped|blew)\s+(?:${AMOUNT})\s*(.*)$`, 'i').exec(t))) {
-    amountRaw = m[1] ?? m[2] ?? m[3];
-    rest = m[4] ?? '';
+    amountRaw = m[1] ?? m[2] ?? m[3] ?? m[4];
+    rest = m[5] ?? '';
   } else if ((m = new RegExp(String.raw`^\$\s?(\d{1,6}(?:,\d{3})*(?:\.\d{1,2})?)\s+(.+)$`, 'i').exec(t))) {
     amountRaw = m[1];
     rest = m[2] ?? '';
   } else if ((m = new RegExp(String.raw`^(?:i\s+)?(?:just\s+)?(?:bought|got|grabbed)\s+(.+?)\s+for\s+(?:${AMOUNT})\s*(.*)$`, 'i').exec(t))) {
+    // A bare number is too loose here ("got tickets for 2"): this form needs $, "bucks" or cents.
     amountRaw = m[2] ?? m[3] ?? m[4];
-    rest = `for ${m[1]} ${m[5] ?? ''}`;
+    rest = `for ${m[1]} ${m[6] ?? ''}`;
   }
   if (!amountRaw) return undefined;
   const amountUsd = Number(amountRaw.replace(/,/g, ''));

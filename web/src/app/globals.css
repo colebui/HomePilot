@@ -1,0 +1,119 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens. Components use these roles (bg-surface, text-ink-2, ...) instead of raw colors,
+ * so light and dark mode are each chosen on purpose rather than flipped automatically.
+ * Chart colors follow a validated, colorblind-checked palette (one blue series, fixed status hues).
+ */
+:root {
+  color-scheme: light;
+  --page: #f6f6f4;
+  --surface: #ffffff;
+  --surface-2: #f1f1ef;
+  --ink: #191919;
+  --ink-2: #5f5f5f;
+  --ink-3: #8a8a8a;
+  --line: #e7e7e5;
+  --line-strong: #c2c2c2;
+  --accent: #2370cd;
+  --accent-soft: #e5effc;
+  --series-1: #257de0;
+  --series-1-soft: #b6d5f8;
+  --good: #0a7d1e;
+  --good-soft: #e3f4e5;
+  --warning: #a86b00;
+  --warning-soft: #fdf1d8;
+  --critical: #c8302f;
+  --critical-soft: #fbe5e4;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --page: #0b0b0b;
+    --surface: #171717;
+    --surface-2: #202020;
+    --ink: #efefef;
+    --ink-2: #a3a3a3;
+    --ink-3: #7a7a7a;
+    --line: #2a2a2a;
+    --line-strong: #474747;
+    --accent: #6aabf1;
+    --accent-soft: #15273d;
+    --series-1: #338ced;
+    --series-1-soft: #1b3a5e;
+    --good: #53c556;
+    --good-soft: #13291a;
+    --warning: #fbb315;
+    --warning-soft: #2e2410;
+    --critical: #eb6263;
+    --critical-soft: #331616;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0b0b0b;
+  --surface: #171717;
+  --surface-2: #202020;
+  --ink: #efefef;
+  --ink-2: #a3a3a3;
+  --ink-3: #7a7a7a;
+  --line: #2a2a2a;
+  --line-strong: #474747;
+  --accent: #6aabf1;
+  --accent-soft: #15273d;
+  --series-1: #338ced;
+  --series-1-soft: #1b3a5e;
+  --good: #53c556;
+  --good-soft: #13291a;
+  --warning: #fbb315;
+  --warning-soft: #2e2410;
+  --critical: #eb6263;
+  --critical-soft: #331616;
+}
+
+@theme inline {
+  --color-page: var(--page);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-series-1: var(--series-1);
+  --color-series-1-soft: var(--series-1-soft);
+  --color-good: var(--good);
+  --color-good-soft: var(--good-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-critical: var(--critical);
+  --color-critical-soft: var(--critical-soft);
+  --font-sans: var(--font-geist-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, Menlo, monospace;
+}
+
+html {
+  background: var(--page);
+}
+
+body {
+  background: var(--page);
+  color: var(--ink);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

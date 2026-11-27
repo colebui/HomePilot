@@ -5,7 +5,9 @@
 A local-first personal assistant you text. It keeps tasks and reminders, texts you when they
 are due, nudges you about things that fit your free time, and keeps a careful record of what its
 language models cost. It runs as one Node.js process with one SQLite file on a Mac mini, and you
-talk to it over iMessage, the terminal, or a local dashboard.
+talk to it over iMessage, the terminal, or a Next.js dashboard. You can also text it what you
+spend ("spent $23 at H-E-B"), and the dashboard puts that next to what the assistant itself costs
+to run.
 
 ```
 you:        need to eat lunch, go to gym around 430, haircut at 6pm, grab groceries from heb at 7pm
@@ -47,10 +49,42 @@ single-use approvals bound to the exact action, and every model call is logged w
   a concurrency limit and a monthly spend ceiling. See [Why OpenRouter](#why-openrouter) below.
 - **Honest cost reporting.** Provider-reported charges, estimates, and simulated demo numbers
   are kept apart and labelled. The report also shows what share of the work never needed a model.
-- **166 offline tests**, a 13-step dry-run demo, and no API key needed for either.
+- **Expenses by text.** "spent $23 at H-E-B", "paid 45 for gas yesterday", "$12 lunch at
+  Chipotle". Categorized by plain rules, totals by month and category, "undo expense". A text
+  about money still to be paid ("I need to pay rent") stays a task.
+- **Web dashboard** in [`web/`](web/README.md): Next.js 16 (App Router, Server Components,
+  Server Actions), Today, Upcoming, Activity and Spending pages, a contract test against the
+  real service, and a public demo mode with generated data.
+- **194 offline service tests**, 51 dashboard tests and browser smoke tests, a 13-step dry-run
+  demo, and no API key needed for any of them.
 
 Stack: TypeScript, Node.js 22.13+, the built-in `node:sqlite` (no native add-ons), zod for
-validation, luxon for time zones, vitest for tests. Two runtime dependencies.
+validation, luxon for time zones, vitest for tests. Two runtime dependencies. The dashboard adds
+Next.js, React 19 and Tailwind CSS 4, with Playwright for browser tests.
+
+## Web dashboard
+
+```
+web/  Next.js app ──server-side fetch, Bearer token──▶  HomePilot service (127.0.0.1:8787)
+       │  Server Components read; Server Actions write          │
+       └─ the token never reaches the browser                   └─ SQLite
+```
+
+Four pages, each answering a question you would ask an assistant:
+
+| Page | Answers |
+| --- | --- |
+| **Today** | What's overdue and due today (tick to finish), the next reminder, anything waiting for my approval, money so far this month, and a box to message HomePilot as if texting it |
+| **Upcoming** | My list by day, every scheduled reminder on a timeline, and the approval history |
+| **Activity** | What HomePilot did, grouped by day and filterable: tasks, reminders, texts, money, system |
+| **Spending** | My spending this month against a budget, by day and category, with a month-end projection; then what HomePilot costs: model spend against its cap, cost per text, share of texts that needed no model, response times and failures per model, and the same calls priced on Claude alone |
+
+How it's built, briefly: every service response is parsed with a zod schema before a component
+sees it; CI regenerates real responses from the service and checks them against those schemas
+(`web/tests/contract.test.ts`), so the two halves cannot drift apart silently. Pages stream
+behind Suspense with Cache Components. Sign-in is an HMAC-signed, HttpOnly session cookie
+checked both in Proxy and again in the data layer. Charts are plain HTML, keyboard and
+screen-reader accessible, and work in light and dark mode. Details in [web/README.md](web/README.md).
 
 ## Status: what is real and what is not
 
@@ -66,6 +100,8 @@ validation, luxon for time zones, vitest for tests. Two runtime dependencies.
 | Model calls | **Working through OpenRouter** | Mock provider by default; live since 2026-11-17 |
 | launchd service | **Running on the Mac mini** | LaunchAgent from `scripts/launchd/`, also serves the dashboard |
 | Local dashboard and CLI | **Working** | Loopback only, token protected |
+| Expenses by text | **Working** | Typed in by text only. No bank or card connection |
+| Next.js dashboard | **Working** | Runs beside the service on the Mac; demo mode needs no service |
 | Keychain lookup | **Written, not verified** | The Mac uses `.env` for now |
 | Google Calendar | **Mocked** | In-memory mock behind the real interface. Adapter not written |
 | Calendar writes, cart, orders, outside messages | **Mocked** | Tools exist so the approval flow can be exercised. They have no real effect |
@@ -124,7 +160,8 @@ real on a Mac (iMessage, launchd, dashboard), follow [docs/operations.md](docs/o
 
 Things you can text: "remind me to X tomorrow at 10am", "I need to X before Friday", "tasks",
 "X done", "done with X and Y", "going to X now", "snooze that until tomorrow 8am", "dismiss X",
-"what should I do with my free hour?", "pause", "resume", "usage", "approve CODE", "deny CODE".
+"what should I do with my free hour?", "spent $23 at H-E-B", "paid 45 for gas yesterday",
+"spending", "undo expense", "pause", "resume", "usage", "approve CODE", "deny CODE".
 Several of these can go in one text.
 
 When a model, not the parser, understood a message, the reply ends with `(read by <model>)`,
@@ -217,7 +254,7 @@ src/
   config.ts, secrets.ts  validated configuration; environment, then Keychain
   clock.ts, time.ts      injectable clock; time-zone maths and the date parser
   db/                    SQLite wrapper and migrations
-  domain/                tasks, reminders, agenda, preferences, approvals, audit events
+  domain/                tasks, reminders, agenda, expenses, preferences, approvals, audit events
   scheduler/             durable job queue
   notify/                outbox and delivery channels
   nudges/                deterministic nudge engine
@@ -225,16 +262,18 @@ src/
   models/                router, OpenRouter adapter, mock provider, price book
   telemetry/             usage recording, reports, export
   tools/                 policy engine, executor, built-in tools
-  api/                   loopback HTTP API and dashboard
+  api/                   loopback HTTP API, dashboard views (insights, activity), basic HTML dashboard
   integrations/          imessage (imsg), google-calendar (mock), openclaw (unused skill)
-scripts/                 demo, read-only host audit, launchd template
-tests/                   166 tests, all offline
+scripts/                 demo, API samples for the contract test, read-only host audit, launchd template
+tests/                   194 tests, all offline
+web/                     Next.js dashboard (its own package; see web/README.md)
 ```
 
 ## Tests
 
 ```bash
-npm run check
+npm run check                                   # service
+cd web && npm run check && npm run test:e2e     # dashboard (build first: npm run build)
 ```
 
 All tests are offline and use a fake clock; CI runs the same command on every push and pull
